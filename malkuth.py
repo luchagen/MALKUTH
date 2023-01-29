@@ -57,7 +57,7 @@ class malkuth:
             beliefs=[]
             for ptr in keywordspointers:
                 blf=self.MEMORY.execute("SELECT * FROM BELIEFS WHERE id==?",ptr).fetchall()
-                beliefs.append(belief.belief(blf[0][1], blf[0][2]))
+                beliefs.append(belief.Belief(blf[0][1], blf[0][2]))
                 
             #for each generated sentence, the belief comparator will receive (the sentence, the list of beliefs to test the sentence against)
             testsentences.append((sen,beliefs))

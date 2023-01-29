@@ -7,8 +7,10 @@ Created on Sun Jan 29 00:24:53 2023
 import seamcarving
 import requests # request img from web
 import shutil # save img locally
-from skimage import io
+import imageio.v3 as iio
 from skimage import transform, util
+from PIL import Image
+import numpy as np
 
 class MagickEditor:
     def download(self,image_url: str):
@@ -27,18 +29,25 @@ class MagickEditor:
     
     def magick(self,image_url: str,strength:float):
         file= self.download(image_url)
-        img = io.imread(file)
-        img = util.img_as_float(img)
-        img=transform.rescale(img, 256/img.shape[0],channel_axis=2)
+        img = iio.imread(file)
         
+        ratio=256/img.shape[0]
+        img=transform.rescale(img,ratio ,channel_axis=2)
+        
+        if isinstance(img[0][0][0],float):
+            img=(img * 255).astype(np.uint8)
         scale=strength
         out = seamcarving.crop_c(img, scale)
         
-        io.imsave("./img/temp.png", out)
-        img = io.imread("./img/temp.png")
+        iio.imwrite("./img/temp.png", out)
+        img = iio.imread("./img/temp.png")
         
         scale=strength
         out = seamcarving.crop_r(img, scale)
-        io.imsave("./img/temp.png", out)
+        
+        out=transform.rescale(out,(1/ratio)*(1/scale) ,channel_axis=2)
+        if isinstance(out[0][0][0],float):
+            out=(out * 255).astype(np.uint8)
+        iio.imwrite("./img/temp.png", out)
         f = open("./img/temp.png", "rb")
         return f

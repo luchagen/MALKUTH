@@ -50,7 +50,7 @@ async def wassup(ctx):
 async def heavens_gate_magick(ctx ,strength:float=0.5, image: str=""):
     async with ctx.channel.typing():
         if image=="":
-            images=[str(attachment) for attachment in ctx.message.attachments if str(attachment)[-4:]=='.png' or str(attachment)[-4]=='.jpg']
+            images=[str(attachment) for attachment in ctx.message.attachments]
             if len(images)==0:
                 if babamalk.last_video !="":
                     images= [babamalk.last_video["thumbnail"][-1]["url"]]
