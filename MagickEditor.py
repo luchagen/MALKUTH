@@ -29,7 +29,7 @@ class MagickEditor:
         file= self.download(image_url)
         img = io.imread(file)
         img = util.img_as_float(img)
-        img=transform.rescale(img, 256/img.shape[0])
+        img=transform.rescale(img, 256/img.shape[0],channel_axis=2)
         
         scale=strength
         out = seamcarving.crop_c(img, scale)
