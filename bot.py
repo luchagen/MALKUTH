@@ -8,6 +8,9 @@ import discord
 import malkuth
 from discord.ext import commands
 import MagickEditor
+import parameters
+
+
 malkmagic=MagickEditor.MagickEditor()
 babamalk= malkuth.malkuth(1,100,0.9,3,20,True)
 description = '''Malkuth has some plans to dominate the world.'''
@@ -68,4 +71,4 @@ async def heavens_gate_magick(ctx ,strength:float=0.5, image: str=""):
 async def prompt(ctx, prompt: str):
     async with ctx.channel.typing():
         await ctx.send(babamalk.freeprompt(prompt))
-bot.run('MTA2ODI2ODg5MTU4MDY4MjI5Mw.GwA5gO.jQ_DXcXZqOB3B8qH497AWEmr1k1TnKMhOhZCzs')
+bot.run(parameters.discord_api_key)

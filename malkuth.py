@@ -11,7 +11,7 @@ import sentencegenerator
 import keywordsfinder
 import http.client
 import json 
-
+import parameters
 
 class malkuth:
     MEMORY =  sl.connect('MEMORY.db')
@@ -94,7 +94,7 @@ class malkuth:
                 rsrch+=b"%20"
             research=b'/search?query='+rsrch+b'&pretty=1'
             headers = {
-                'X-RapidAPI-Key': "112b6ebd1bmsh65242a7d696060ap1d04ecjsn61318ebf35da",
+                'X-RapidAPI-Key': parameters.youtube_api_key,
                 'X-RapidAPI-Host': "yt-api.p.rapidapi.com"
             }
             
@@ -111,7 +111,7 @@ class malkuth:
             while link.find("/")!=-1:
                 link=link[link.find("/")+1:]
             headers = {
-                'X-RapidAPI-Key': "112b6ebd1bmsh65242a7d696060ap1d04ecjsn61318ebf35da",
+                'X-RapidAPI-Key': parameters.youtube_api_key,
                 'X-RapidAPI-Host': "yt-api.p.rapidapi.com"
             }
             conn.request("GET", "/video?id="+link, headers=headers)

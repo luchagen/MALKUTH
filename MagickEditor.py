@@ -8,8 +8,7 @@ import seamcarving
 import requests # request img from web
 import shutil # save img locally
 import imageio.v3 as iio
-from skimage import transform, util
-from PIL import Image
+from skimage import transform
 import numpy as np
 
 class MagickEditor:

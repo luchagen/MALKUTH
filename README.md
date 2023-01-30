@@ -8,7 +8,7 @@ sentence-transformers
 scipy
 stanza
 scikit-image
-petals
+petals #NOT COMPATIBLE WITH WINDOWS DISTRIBUTIONS
 numba
 tqdm
 numpy
@@ -18,3 +18,4 @@ numpy
 
 note: seam-carving is a patented algorithm , thus not present in the repository. The expected method should follow the algorithm as presented by Karthik Karanth here:
 https://karthikkaranth.me/blog/implementing-seam-carving-with-python/
+
