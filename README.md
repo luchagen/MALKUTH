@@ -19,3 +19,6 @@ numpy
 note: seam-carving is a patented algorithm , thus not present in the repository. The expected method should follow the algorithm as presented by Karthik Karanth here:
 https://karthikkaranth.me/blog/implementing-seam-carving-with-python/
 
+
+Main file for discord interaction is bot.py 
+

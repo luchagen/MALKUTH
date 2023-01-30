@@ -45,7 +45,7 @@ class SentenceGenerator():
                 tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,early_stopping=True,temperature=0.7,no_repeat_ngram_size=3)
                 sentence=self.tokenizer.decode(tokenout[0][len(context[0]):])
                 sentenceb=prompt
-                j=len(prompt)-1
+                j=len(prompt)
                 
                 #The sentence generation has a tendency to add unnecessary quotes,
                 #and to generate a full dialogue rather than just one response; we add delimiters.
