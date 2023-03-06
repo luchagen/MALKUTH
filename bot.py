@@ -34,8 +34,13 @@ async def on_message(message):
         return
     if bot.user.mentioned_in(message):
         async with message.channel.typing():
-            reply=babamalk.generate_response(message.content,message.author.name)
+            if message.content[:7]== '@MALKUTH':
+                reply=babamalk.generate_response(message.content[8:],message.author.name)
+            else :
+                reply=babamalk.generate_response(message.content,message.author.name)
             print(reply)
+            if reply[-4:] == '</s>':
+                reply =reply[:-4]
             await message.channel.send(reply[0])
     await bot.process_commands(message)
 
@@ -67,8 +72,20 @@ async def heavens_gate_magick(ctx ,strength:float=0.5, image: str=""):
             files.append(file)
         await ctx.channel.send(files=files)
 
+@bot.command(description='debug')
+async def debug(ctx , command: str=''):
+    if command == 'lastmemory':
+        await ctx.channel.send(babamalk.last_activated)
+
 @bot.command(description='unconstrained interaction with the language model')
 async def prompt(ctx, prompt: str):
     async with ctx.channel.typing():
         await ctx.send(babamalk.freeprompt(prompt))
+
+@bot.command(description='program (kinda) the response Malkuth would say to a (or a string of) question(s)')
+async def program(ctx, questions: str, answer: str):
+    async with ctx.channel.typing():
+        babamalk.program(questions,answer)
+        await ctx.send(" :question: Malkuth will remember that.")
+        
 bot.run(parameters.discord_api_key)
