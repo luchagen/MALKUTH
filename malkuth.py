@@ -65,7 +65,7 @@ class malkuth:
             if len(activations)!=0:    
                 maxactivation=max(activations)[0]-2.0
             for i in range(len(activations)):
-                if activations[i][0]>=2.0 and activations[i][0]-2.0 >= maxactivation/2.71828182845904523536028747135266249775724709369995957496696762:
+                if activations[i][0]>=2.0 and activations[i][0]-2.0 >= maxactivation-0.5:
                     activated[activations[i][1]]=1
         
         tobeaddedbeliefs=[]

@@ -38,11 +38,8 @@ class StopWordBloomConstraint(generation_constraints.ABCBloomConstraint):
             for i in range(1,len(self.stoptokens)):
                 mask=torch.logical_or(mask , (self.wait_until_starting < 0) & (self.past_tokens == self.stoptokens[i]))
             logits += self.min_logits * mask
-            for stop in self.stoptokens:
-                logits[mask[:, 0], 2] = 1e8
-
-        
-
+            logits[mask[:, 0], 2] = -self.min_logits
+            
         return logits
     
 class SentenceGenerator():
@@ -78,13 +75,19 @@ class SentenceGenerator():
         self.stoptokens.append(a[-1][-1])
         a= self.tokenizer("?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
+        a= self.tokenizer("keter?",return_tensors="pt")["input_ids"]
+        self.stoptokens.append(a[-1][-1])
         a= self.tokenizer(" !",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
         a= self.tokenizer("!",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
+        a= self.tokenizer("keter!",return_tensors="pt")["input_ids"]
+        self.stoptokens.append(a[-1][-1])
         a= self.tokenizer(" .",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
         a= self.tokenizer(".",return_tensors="pt")["input_ids"]
+        self.stoptokens.append(a[-1][-1])
+        a= self.tokenizer("keter.",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
         
     def generate_sentences(self,context,prompt: str):
@@ -101,15 +104,16 @@ class SentenceGenerator():
                 
                 #The sentence generation has a tendency to add unnecessary quotes,
                 #and to generate a full dialogue rather than just one response, so we used to add delimiters.
+                #we keep those in case the model refuses to stop generation wen constrained to do it (petals).
                 #(note , perhaps the end of sentence delimiters might sometimes cut the answer too short)
                 while j< len(sentence):
                     if sentence[j]=='«'or sentence[j] == '»':
                         sentenceb+=''
-                    # elif sentence[j]=='.'or sentence[j]=='!'or sentence[j]=='?':
-                    #     sentenceb+=sentence[j]
-                    #     j=len(sentence)
-                    # else:
-                    sentenceb+=sentence[j]
+                    elif sentence[j]=='.'or sentence[j]=='!'or sentence[j]=='?':
+                        sentenceb+=sentence[j]
+                        j=len(sentence)
+                    else:
+                        sentenceb+=sentence[j]
                     j+=1
                 sentences.append(sentenceb)
                 

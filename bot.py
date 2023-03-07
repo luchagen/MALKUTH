@@ -9,7 +9,7 @@ import malkuth
 from discord.ext import commands
 import MagickEditor
 import parameters
-
+import attachmentutils
 
 malkmagic=MagickEditor.MagickEditor()
 babamalk= malkuth.malkuth(1,100,0.9,3,20,True)
@@ -36,12 +36,18 @@ async def on_message(message):
         async with message.channel.typing():
             if message.content[:7]== '@MALKUTH':
                 reply=babamalk.generate_response(message.content[8:],message.author.name)
+            elif message.content[:22] == '<@1068268891580682293>':
+                reply=babamalk.generate_response(message.content[22:],message.author.name)
             else :
                 reply=babamalk.generate_response(message.content,message.author.name)
             print(reply)
             if reply[-4:] == '</s>':
                 reply =reply[:-4]
             await message.channel.send(reply[0])
+    if attachmentutils.checklogging(message.channel.guild.name, message.channel.name):
+        for thing in message.attachments :
+            if thing.url[:18]!='https://tenor.com/' :
+                attachmentutils.storepicture(thing.url,message.channel.name)
     await bot.process_commands(message)
 
 @bot.command(description='Send forth malkuth to the lands of youtube')
@@ -76,6 +82,8 @@ async def heavens_gate_magick(ctx ,strength:float=0.5, image: str=""):
 async def debug(ctx , command: str=''):
     if command == 'lastmemory':
         await ctx.channel.send(babamalk.last_activated)
+    if command == 'lastmessage':
+        await ctx.channel.send(babamalk.lastresponse)
 
 @bot.command(description='unconstrained interaction with the language model')
 async def prompt(ctx, prompt: str):
@@ -87,5 +95,36 @@ async def program(ctx, questions: str, answer: str):
     async with ctx.channel.typing():
         babamalk.program(questions,answer)
         await ctx.send(" :question: Malkuth will remember that.")
+
+@bot.command(description="activate or deactivate logging attachments into Malkuth's memory for this channel")
+async def attachmentlog(ctx):
+    async with ctx.channel.typing():
+        logging_activated=attachmentutils.changelogging(ctx.channel.guild.name, ctx.channel.name)
+        if attachmentutils.checklogging(ctx.channel.guild.name, ctx.channel.name):
+            await ctx.send(" :question: Malkuth will now log all attachments posted in this channel.")
+        else:
+            await ctx.send(" :question: Malkuth will now stop logging all attachments posted in this channel.")
+
+@bot.command(description="check what Malkuth has in stock in her library of pictures")
+async def picturetypes(ctx):
+        await ctx.send(str(attachmentutils.getalltables()))
         
+@bot.command(description="send a random picture from one of Malkuth's library")
+async def randompicture(ctx, what : str):
+    async with ctx.channel.typing():
+        await ctx.send(attachmentutils.getrandompicture(what)[0][0])
+
+@bot.command(description="send a random picture from one of Malkuth's library")
+async def picture(ctx, what : str, pictureid: int):
+    async with ctx.channel.typing():
+        await ctx.send(attachmentutils.getonepicture(what,pictureid)[0][0])
+        
+@bot.command(description="send every picture from one of Malkuth's library")
+async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str):
+    if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
+        images = attachmentutils.getallpictures(what)
+        for img in images:
+            async with ctx.channel.typing():
+                await ctx.send(img[0])
+
 bot.run(parameters.discord_api_key)
