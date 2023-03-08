@@ -5,15 +5,16 @@ Created on Thu Jan 26 22:11:22 2023
 @author: suric
 """
 import discord
-import malkuth
+
 from discord.ext import commands
 import MagickEditor
 import parameters
 import attachmentutils
 from time import sleep
-
+import malkuth
+babamalk= malkuth.malkuth(1,100,0.9,3,20,True)
 malkmagic=MagickEditor.MagickEditor()
-babamalk= malkuth.malkuth(1,100,0.9,3,2,True)
+
 description = '''Malkuth has some plans to dominate the world.'''
 
 intents = discord.Intents.default()
@@ -127,7 +128,12 @@ async def randompicture(ctx, what : str, do_logging: int =0 ):
             await ctx.send(img[0][0])
             if do_logging==1:
                 attachmentutils.storepicture(img[0][0],ctx.channel.name)
-                        
+
+@bot.command(description="delete a picture from one of Malkuth's library")
+async def deletepicture(ctx, what : str, pictureid: int):
+    async with ctx.channel.typing():
+        img = attachmentutils.deleteonepicture(what,pictureid)
+                
 @bot.command(description="send a picture from one of Malkuth's library")
 async def picture(ctx, what : str, pictureid: int, do_logging: int =0 ):
     async with ctx.channel.typing():
@@ -143,10 +149,12 @@ async def picture(ctx, what : str, pictureid: int, do_logging: int =0 ):
         
 @bot.command(description="send every picture from one of Malkuth's library")
 async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str, do_logging: int =0 ):
+    print(ctx.channel.name)
     if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
         images = attachmentutils.getallpictures(what)
         for img in images:
             async with ctx.channel.typing():
+         
                 if isinstance(img,str):
                     await ctx.send(img)
                     if do_logging==1:

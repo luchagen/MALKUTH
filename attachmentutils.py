@@ -20,6 +20,10 @@ def getallpictures(name: str):
     qry = "SELECT attachment FROM {}".format(clean(name))
     return PICMEMORY.execute(qry).fetchall()
 
+def deleteonepicture(name: str, i):
+    qry ="DELETE FROM garderiedeklee WHERE id=(?)".format(clean(name))
+    PICMEMORY.execute(qry,[i])
+
 def getonepicture(name: str,i):
     qry1 = "SELECT id FROM {}".format(clean(name))
     qry = "SELECT attachment FROM {} WHERE id=(?)".format(clean(name))
@@ -42,7 +46,8 @@ def getrandompicture(name: str):
     return getonepicture(name,randint(0,nbr))
 
 def storepicture(attachment: str,name: str):
-    if (PICMEMORY.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=(?)",[name]).fetchall() ==[(0,)]):
+    cleansed=clean(name)
+    if (PICMEMORY.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=(?)",[cleansed]).fetchall() ==[(0,)]):
         qry=""" CREATE TABLE {} (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     attachment TEXT
