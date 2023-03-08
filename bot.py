@@ -10,16 +10,16 @@ from discord.ext import commands
 import MagickEditor
 import parameters
 import attachmentutils
+from time import sleep
 
 malkmagic=MagickEditor.MagickEditor()
-babamalk= malkuth.malkuth(1,100,0.9,3,20,True)
+babamalk= malkuth.malkuth(1,100,0.9,3,2,True)
 description = '''Malkuth has some plans to dominate the world.'''
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix='?', description=description, intents=intents)
-
 
 @bot.event
 async def on_ready():
@@ -29,6 +29,7 @@ async def on_ready():
 
 @bot.event    
 async def on_message(message):
+    
     # we do not want the bot to reply to itself
     if message.author.id == bot.user.id:
         return
@@ -44,10 +45,15 @@ async def on_message(message):
             if reply[-4:] == '</s>':
                 reply =reply[:-4]
             await message.channel.send(reply[0])
+    #attachmentlogging
     if attachmentutils.checklogging(message.channel.guild.name, message.channel.name):
+        for thing in message.embeds:
+            if thing.url[:18]!='https://tenor.com/' :
+                attachmentutils.storepicture(thing.url,message.channel.name)
         for thing in message.attachments :
             if thing.url[:18]!='https://tenor.com/' :
                 attachmentutils.storepicture(thing.url,message.channel.name)
+                
     await bot.process_commands(message)
 
 @bot.command(description='Send forth malkuth to the lands of youtube')
@@ -110,21 +116,45 @@ async def picturetypes(ctx):
         await ctx.send(str(attachmentutils.getalltables()))
         
 @bot.command(description="send a random picture from one of Malkuth's library")
-async def randompicture(ctx, what : str):
+async def randompicture(ctx, what : str, do_logging: int =0 ):
     async with ctx.channel.typing():
-        await ctx.send(attachmentutils.getrandompicture(what)[0][0])
-
-@bot.command(description="send a random picture from one of Malkuth's library")
-async def picture(ctx, what : str, pictureid: int):
+        img = attachmentutils.getrandompicture(what)
+        if isinstance(img[0],str):
+            await ctx.send(img[0])
+            if do_logging==1:
+                attachmentutils.storepicture(img[0],ctx.channel.name)
+        else:
+            await ctx.send(img[0][0])
+            if do_logging==1:
+                attachmentutils.storepicture(img[0][0],ctx.channel.name)
+                        
+@bot.command(description="send a picture from one of Malkuth's library")
+async def picture(ctx, what : str, pictureid: int, do_logging: int =0 ):
     async with ctx.channel.typing():
-        await ctx.send(attachmentutils.getonepicture(what,pictureid)[0][0])
+        img = attachmentutils.getonepicture(what,pictureid)
+        if isinstance(img[0],str):
+            await ctx.send(img[0])
+            if do_logging==1:
+                attachmentutils.storepicture(img[0],ctx.channel.name)
+        else:
+            await ctx.send(img[0][0])
+            if do_logging==1:
+                attachmentutils.storepicture(img[0][0],ctx.channel.name)
         
 @bot.command(description="send every picture from one of Malkuth's library")
-async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str):
+async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str, do_logging: int =0 ):
     if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
         images = attachmentutils.getallpictures(what)
         for img in images:
             async with ctx.channel.typing():
-                await ctx.send(img[0])
+                if isinstance(img,str):
+                    await ctx.send(img)
+                    if do_logging==1:
+                        attachmentutils.storepicture(img,ctx.channel.name)
+                else:
+                    await ctx.send(img[0])
+                    if do_logging==1:
+                        attachmentutils.storepicture(img[0],ctx.channel.name)
+                    
 
 bot.run(parameters.discord_api_key)

@@ -27,7 +27,7 @@ def getonepicture(name: str,i):
     picture = PICMEMORY.execute(qry,[i]).fetchall()
     
     if picture==[]:
-        return ("No images with this id. the length of this library is " + str(nbr))
+        return (["No images with this id. the length of this library is " + str(nbr)])
     return picture
 
 def getalltables():

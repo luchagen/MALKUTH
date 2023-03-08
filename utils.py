@@ -52,10 +52,26 @@ def getactivations(predicatesmem,predicatetest,i):
         activation=0.0
         activation+=get_cosine(lemmascount(pred["subj_"]),lemmascount(predicatetest["subj_"]))
         activation+=get_cosine(lemmascount(pred["head_"]),lemmascount(predicatetest["head_"]))
-        activation+=get_cosine(lemmascount(pred["how_"]),lemmascount(predicatetest["how_"]))
+        
         activation+=get_cosine(lemmascount(pred["obj_"]),lemmascount(predicatetest["obj_"]))
+        activation+=get_cosine(lemmascount(pred["obj_"]),lemmascount(predicatetest["how_"]))/2
+        activation+=get_cosine(lemmascount(pred["obj_"]),lemmascount(predicatetest["why_"]))/2
+        activation+=get_cosine(lemmascount(pred["obj_"]),lemmascount(predicatetest["where_"]))/2
+        
+        activation+=get_cosine(lemmascount(pred["how_"]),lemmascount(predicatetest["how_"]))
+        activation+=get_cosine(lemmascount(pred["how_"]),lemmascount(predicatetest["why_"]))/2
+        activation+=get_cosine(lemmascount(pred["how_"]),lemmascount(predicatetest["where_"]))/2
+        activation+=get_cosine(lemmascount(pred["how_"]),lemmascount(predicatetest["obj_"]))/2
+        
         activation+=get_cosine(lemmascount(pred["why_"]),lemmascount(predicatetest["why_"]))
+        activation+=get_cosine(lemmascount(pred["why_"]),lemmascount(predicatetest["how_"]))/2
+        activation+=get_cosine(lemmascount(pred["why_"]),lemmascount(predicatetest["where_"]))/2
+        activation+=get_cosine(lemmascount(pred["why_"]),lemmascount(predicatetest["obj_"]))/2
+        
         activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["where_"]))
+        activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["obj_"]))/2
+        activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["how_"]))/2
+        activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["why_"]))/2
         activations.append((activation,i))
     if activations==[]:
         activations.append((0,i))
