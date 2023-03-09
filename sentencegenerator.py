@@ -52,6 +52,7 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
     def _get_ngrams(self,ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, memquottoken):
         generated_ngrams = [{} for _ in range(num_hypos)]
         for idx in range(num_hypos):
+            gen_tokens = prev_input_ids[idx].tolist()
             gen_tokens= []
             record=True
             for item in prev_input_ids[idx]:
@@ -60,7 +61,7 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
                 elif item == memquottoken and record == False:
                     record = True
                 if record ==True:
-                    gen_tokens.append(item)
+                    gen_tokens.append(item.item())
                 
             #gen_tokens = gen_tokens.tolist()
             generated_ngram = generated_ngrams[idx]

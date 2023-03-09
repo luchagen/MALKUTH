@@ -5,14 +5,16 @@ Created on Thu Jan 26 22:11:22 2023
 @author: suric
 """
 import discord
-
+import asyncio
 from discord.ext import commands
 import MagickEditor
+import contextvars
+import functools
 import parameters
 import attachmentutils
 from time import sleep
 import malkuth
-babamalk= malkuth.malkuth(1,100,0.9,3,20,True)
+
 malkmagic=MagickEditor.MagickEditor()
 
 description = '''Malkuth has some plans to dominate the world.'''
@@ -22,10 +24,31 @@ intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 
+
+def initialize_lm():
+    global babamalk
+    babamalk= malkuth.malkuth(10,100,0.9,3,20,True)
+
+def babamalkreply(message):
+    try:
+        if message.content[:7]== '@MALKUTH':
+            reply=babamalk.generate_response(message.content[8:],message.author.name)
+        elif message.content[:22] == '<@1068268891580682293>':
+            reply=babamalk.generate_response(message.content[22:],message.author.name)
+        else :
+            reply=babamalk.generate_response(message.content,message.author.name)
+            
+        if reply[-4:] == '</s>':
+            reply =reply[:-4]
+        return reply
+    except NameError:
+        return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0)
+    
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
+    await asyncio.get_running_loop().run_in_executor(None, initialize_lm)
     
 
 @bot.event    
@@ -36,15 +59,11 @@ async def on_message(message):
         return
     if bot.user.mentioned_in(message):
         async with message.channel.typing():
-            if message.content[:7]== '@MALKUTH':
-                reply=babamalk.generate_response(message.content[8:],message.author.name)
-            elif message.content[:22] == '<@1068268891580682293>':
-                reply=babamalk.generate_response(message.content[22:],message.author.name)
-            else :
-                reply=babamalk.generate_response(message.content,message.author.name)
+            try:
+                reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkreply,message), timeout=1.0)
+            except TimeoutError:
+                reply=("timeout. check the health of the petals network at health.petals.ml")
             print(reply)
-            if reply[-4:] == '</s>':
-                reply =reply[:-4]
             await message.channel.send(reply[0])
     #attachmentlogging
     if attachmentutils.checklogging(message.channel.guild.name, message.channel.name):
