@@ -6,48 +6,24 @@ Created on Mon Jan 23 01:23:45 2023
 """
 
 import torch
-from transformers import BloomTokenizerFast 
-from petals import DistributedBloomForCausalLM
-# from transformers import AutoTokenizer, AutoModelForCausalLM
-# from transformers import generation_stopping_criteria
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers.generation import stopping_criteria
 from transformers.generation import logits_process
 from typing import Iterable, List
-from petals.utils import generation_constraints 
 
 #new transformers criterium for stopping generation when encountering tokens we count as stopwords.
-# class StopWordCriteria(generation_stopping_criteria.StoppingCriteria):
-    # def __init__(self, stoptokens):
-        # self.stoptokens = stoptokens
-    # def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        # return input_ids[-1][-1] in self.stoptokens
-
-#the same criterium but adapted to a BloomConstraint for petals
-class StopWordBloomConstraint(generation_constraints.ABCBloomConstraint):
-    def __init__(self, prefixlength: int,stoptokens, min_logits: float = -1e8) -> None:
+class StopWordCriteria(stopping_criteria.StoppingCriteria):
+    def __init__(self, stoptokens):
         self.stoptokens = stoptokens
-        self.min_logits = min_logits
-        self.past_tokens = None
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        return input_ids[-1][-1] in self.stoptokens
 
-        self.wait_until_starting = prefixlength
 
-    def __call__(self, tokens_id: torch.Tensor, logits: torch.Tensor, hypo_ids: torch.Tensor) -> torch.Tensor:
-        if tokens_id is not None:
-            self.past_tokens = tokens_id
-            self.wait_until_starting -= 1
-            
-        if self.past_tokens is not None:
-        
-            mask = (self.wait_until_starting < 0) & (self.past_tokens == self.stoptokens[0])
-            for i in range(1,len(self.stoptokens)):
-                mask=torch.logical_or(mask , (self.wait_until_starting < 0) & (self.past_tokens == self.stoptokens[i]))
-            logits += self.min_logits * mask
-            logits[mask[:, 0], 2] = -self.min_logits
-            
-        return logits
 
 #We appy constraints to prevent the model from overly repeating itself 
-class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
+class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
     r"""
+    Copied from Transformers (generation.logits_process, see NoRepeatNgramLogitsProcessor)
     [`LogitsProcessor`] that enforces no repetition of n-grams. See
     [Fairseq](https://github.com/pytorch/fairseq/blob/a07cb6f40480928c9e0548b737aadd36ee66ac76/fairseq/sequence_generator.py#L345).
     Args:
@@ -63,18 +39,15 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
         self.min_logits = min_logits
         self.past_tokens = None
         
-    def __call__(self, tokens_id: torch.Tensor, logits: torch.Tensor,hypo_ids: torch.Tensor) -> torch.Tensor:
-        if tokens_id is not None:
-            self.past_tokens = tokens_id
-            num_batch_hypotheses=hypo_ids.shape[0]
-            cur_len = tokens_id.shape[-1]
-        if self.past_tokens is not None:
-            banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, tokens_id, num_batch_hypotheses, cur_len, self.memquottoken)
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        num_batch_hypotheses = scores.shape[0]
+        cur_len = input_ids.shape[-1]
+        banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, input_ids, num_batch_hypotheses, cur_len,self.memquottoken)
 
-            for i, banned_tokens in enumerate(banned_batch_tokens):
-                logits[i, banned_tokens] = self.min_logits
+        for i, banned_tokens in enumerate(banned_batch_tokens):
+            scores[i, banned_tokens] = -float("inf")
 
-        return logits
+        return scores
     
     def _get_ngrams(self,ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, memquottoken):
         generated_ngrams = [{} for _ in range(num_hypos)]
@@ -89,7 +62,7 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
                 if record ==True:
                     gen_tokens.append(item)
                 
-            gen_tokens = gen_tokens.tolist()
+            #gen_tokens = gen_tokens.tolist()
             generated_ngram = generated_ngrams[idx]
             for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
                 prev_ngram_tuple = tuple(ngram[:-1])
@@ -124,12 +97,8 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
 
     
 class SentenceGenerator():
-    MODEL_NAME = "bigscience/bloom-petals"
-    #MODEL_NAME= "bigscience/bloomz-petals"
-    tokenizer = BloomTokenizerFast.from_pretrained(MODEL_NAME)
-    model = DistributedBloomForCausalLM.from_pretrained(MODEL_NAME)
-    # tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
-    # model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models").cuda()
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
+    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models").cuda()
     #proposed values (for small LMs)
     sentencesperquery=10
     sequencelength=25
@@ -140,7 +109,7 @@ class SentenceGenerator():
     # stopcriteria= generation_stopping_criteria.StoppingCriteriaList()
     # stopcriteria.append(StopWordCriteria(stoptokens))
     stoptokens =[] #end of message detection tokens.
-    metacontext=tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"]
+    metacontext=tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"].cuda()
     context=[] #old messages stored as tokens
     memquottoken=[] #token that delimit memories, for use in a repetition constraint
     
@@ -153,39 +122,42 @@ class SentenceGenerator():
         self.shorttermmemory_size=shorttermmemory_size #size of the memory of the inference session in number of messages
         
         #We autodetect the end of message detection tokens
-        a= self.tokenizer(" ?",return_tensors="pt")["input_ids"]
+        a= self.tokenizer(" ?",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("?",return_tensors="pt")["input_ids"]
+        a= self.tokenizer("?",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter?",return_tensors="pt")["input_ids"]
+        a= self.tokenizer("keter?",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(" !",return_tensors="pt")["input_ids"]
+        a= self.tokenizer(" !",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("!",return_tensors="pt")["input_ids"]
+        a= self.tokenizer("!",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter!",return_tensors="pt")["input_ids"]
+        a= self.tokenizer("keter!",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(" .",return_tensors="pt")["input_ids"]
+        a= self.tokenizer(" .",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(".",return_tensors="pt")["input_ids"]
+        a= self.tokenizer(".",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter.",return_tensors="pt")["input_ids"]
+        a= self.tokenizer("keter.",return_tensors="pt")["input_ids"].cuda()
         self.stoptokens.append(a[-1][-1])
         
         #we search for markers of a memory information
-        memquot= self.tokenizer(' "',return_tensors="pt")["input_ids"]
+        memquot= self.tokenizer(' "',return_tensors="pt")["input_ids"].cuda()
         self.memquottoken=memquot[-1][-1]
         
-        
+        self.logitsprocessors = logits_process.LogitsProcessorList()
+        self.logitsprocessors.append(NoRepeatNGramWMemLogitsProcessor(3,self.memquottoken))
+        self.stopcriteria = stopping_criteria.StoppingCriteriaList()
+        self.stopcriteria.append(StopWordCriteria(self.stoptokens))
         
     def generate_sentences(self,context,prompt: str):
-            inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
+            inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"].cuda()
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             
             
             for i in range(self.sentencesperquery):
-                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,early_stopping=True,temperature=0.7,no_repeat_ngram_size=3,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,self.memquottoken)],eos_token_id=2)
+                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,early_stopping=True,temperature=0.7,no_repeat_ngram_size=3,logits_processor=self.logitsprocessors,stopping_criteria=self.stopcriteria,eos_token_id=2)
                 sentence=self.tokenizer.decode(tokenout[0][len(context[0]):])
                 sentenceb=prompt
                 j=len(prompt)
@@ -214,7 +186,7 @@ class SentenceGenerator():
     #for generation to take immediate past sentences into account without regenerating the tokens
     def inference_session(self,prompt: str,last_response: str):
         #generate tokens for interaction n-1
-        self.context.append(self.tokenizer(last_response+" \n ", return_tensors="pt")["input_ids"])
+        self.context.append(self.tokenizer(last_response+" \n ", return_tensors="pt")["input_ids"].cuda())
         
         if len(self.context)>self.shorttermmemory_size:
             self.context.pop(0)
@@ -230,7 +202,7 @@ class SentenceGenerator():
     
     def free_text_gen(self,prompt):
         #place the burden of indicating context on the user, no memory whatsoever
-        inputs = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
+        inputs = self.tokenizer(prompt, return_tensors="pt")["input_ids"].cuda()
         tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,temperature=0.7,no_repeat_ngram_size=3)
         sentence=self.tokenizer.decode(tokenout[0])
         return sentence[(len(prompt)-1):]

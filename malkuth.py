@@ -108,8 +108,7 @@ class malkuth:
                 
             #for each generated sentence, the belief comparator will receive (the sentence, the list of beliefs to test the sentence against)
             testsentences.append((sen,beliefs))
-        #chosensentence=self.beefcomp.mostbelievable(testsentences)
-        chosensentence = (sen, 1.0)
+        chosensentence=self.beefcomp.mostbelievable(testsentences)
         chosenresponse=chosensentence[0][len(prompt):]
         
         self.lastresponse=""
