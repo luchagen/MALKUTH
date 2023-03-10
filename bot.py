@@ -43,7 +43,13 @@ def babamalkreply(message):
         return reply
     except NameError:
         return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0)
-    
+
+def babamalkfreeprompt(prompt):
+    try:
+        return babamalk.freeprompt(prompt)
+    except NameError:
+        return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml")
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
@@ -60,9 +66,9 @@ async def on_message(message):
     if bot.user.mentioned_in(message):
         async with message.channel.typing():
             try:
-                reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkreply,message), timeout=1.0)
-            except TimeoutError:
-                reply=("timeout. check the health of the petals network at health.petals.ml")
+                reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkreply,message), timeout=600)
+            except asyncio.exceptions.TimeoutError:
+                reply=("timeout. check the health of the petals network at health.petals.ml",0)
             print(reply)
             await message.channel.send(reply[0])
     #attachmentlogging
@@ -114,7 +120,11 @@ async def debug(ctx , command: str=''):
 @bot.command(description='unconstrained interaction with the language model')
 async def prompt(ctx, prompt: str):
     async with ctx.channel.typing():
-        await ctx.send(babamalk.freeprompt(prompt))
+        try:
+            reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkfreeprompt,prompt), timeout=600)
+        except asyncio.exceptions.TimeoutError:
+            reply=("timeout. check the health of the petals network at health.petals.ml")
+        await ctx.send(reply)
 
 @bot.command(description='program (kinda) the response Malkuth would say to a (or a string of) question(s)')
 async def program(ctx, questions: str, answer: str):
