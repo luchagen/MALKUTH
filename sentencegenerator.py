@@ -43,7 +43,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
         num_batch_hypotheses = scores.shape[0]
         cur_len = input_ids.shape[-1]
         banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, input_ids, num_batch_hypotheses, cur_len,self.memquottoken)
-
+        
+        
         for i, banned_tokens in enumerate(banned_batch_tokens):
             scores[i, banned_tokens] = -float("inf")
 
@@ -98,8 +99,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
 
     
 class SentenceGenerator():
-    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
-    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models").cuda()
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
+    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
     #proposed values (for small LMs)
     sentencesperquery=10
     sequencelength=25
@@ -110,7 +111,7 @@ class SentenceGenerator():
     # stopcriteria= generation_stopping_criteria.StoppingCriteriaList()
     # stopcriteria.append(StopWordCriteria(stoptokens))
     stoptokens =[] #end of message detection tokens.
-    metacontext=tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"].cuda()
+    metacontext=tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"]
     context=[] #old messages stored as tokens
     memquottoken=[] #token that delimit memories, for use in a repetition constraint
     
@@ -123,27 +124,27 @@ class SentenceGenerator():
         self.shorttermmemory_size=shorttermmemory_size #size of the memory of the inference session in number of messages
         
         #We autodetect the end of message detection tokens
-        a= self.tokenizer(" ?",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer(" ?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("?",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer("?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter?",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer("keter?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(" !",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer(" !",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("!",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer("!",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter!",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer("keter!",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(" .",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer(" .",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer(".",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer(".",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
-        a= self.tokenizer("keter.",return_tensors="pt")["input_ids"].cuda()
+        a= self.tokenizer("keter.",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
         
         #we search for markers of a memory information
-        memquot= self.tokenizer(' "',return_tensors="pt")["input_ids"].cuda()
+        memquot= self.tokenizer(' "',return_tensors="pt")["input_ids"]
         self.memquottoken=memquot[-1][-1]
         
         self.logitsprocessors = logits_process.LogitsProcessorList()
@@ -152,7 +153,7 @@ class SentenceGenerator():
         self.stopcriteria.append(StopWordCriteria(self.stoptokens))
         
     def generate_sentences(self,context,prompt: str):
-            inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"].cuda()
+            inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             
@@ -168,7 +169,7 @@ class SentenceGenerator():
                 #we keep those in case the model refuses to stop generation wen constrained to do it (petals).
                 #(note , perhaps the end of sentence delimiters might sometimes cut the answer too short)
                 while j< len(sentence):
-                    if sentence[j]=='«'or sentence[j] == '»':
+                    if sentence[j]=='«'or sentence[j] == '»' or sentence[j] =='"':
                         sentenceb+=''
                     elif sentence[j]=='.'or sentence[j]=='!'or sentence[j]=='?':
                         sentenceb+=sentence[j]
@@ -187,7 +188,7 @@ class SentenceGenerator():
     #for generation to take immediate past sentences into account without regenerating the tokens
     def inference_session(self,prompt: str,last_response: str):
         #generate tokens for interaction n-1
-        self.context.append(self.tokenizer(last_response+" \n ", return_tensors="pt")["input_ids"].cuda())
+        self.context.append(self.tokenizer(last_response+" \n ", return_tensors="pt")["input_ids"])
         
         if len(self.context)>self.shorttermmemory_size:
             self.context.pop(0)
@@ -203,7 +204,7 @@ class SentenceGenerator():
     
     def free_text_gen(self,prompt):
         #place the burden of indicating context on the user, no memory whatsoever
-        inputs = self.tokenizer(prompt, return_tensors="pt")["input_ids"].cuda()
+        inputs = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
         tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,temperature=0.7,no_repeat_ngram_size=3)
         sentence=self.tokenizer.decode(tokenout[0])
         return sentence[(len(prompt)-1):]

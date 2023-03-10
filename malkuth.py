@@ -15,9 +15,9 @@ import parameters
 import utils
 
 class malkuth:
-    MEMORY =  sl.connect('MEMORY.db')
+    MEMORY =  sl.connect('MEMORY.db', check_same_thread=False)
     kwfinder=keywordsfinder.KeywordsFinder()
-    beefcomp=beliefcomparator.BeliefComparator()
+    beefcomp=beliefcomparator.BeliefComparator(kwfinder)
     writememory=False
     lastresponse=""
     last_video=""
@@ -56,7 +56,7 @@ class malkuth:
         
         #find most activated memories
         activated = [0 for i in range(len(beliefs))]
-        memoryprompt=' \n Malkuth pense : "'
+        memoryprompt=' \nMalkuth pense : '
         for pred in messagepred:
             activations=[]
             for i in range(len(memorypred)):
@@ -74,15 +74,13 @@ class malkuth:
                 tobeaddedbeliefs.append(beliefs[i][0])
         tobeaddedbeliefs= list(set(tobeaddedbeliefs))
         for i in range(min(len(tobeaddedbeliefs),4)):
-                memoryprompt+=  " \n " + tobeaddedbeliefs[i] 
+                memoryprompt+=  " \n "+ ' " ' + tobeaddedbeliefs[i] +  ' " '
         
-        if memoryprompt ==' \n Malkuth pense : "':
+        if memoryprompt ==' \nMalkuth pense : ':
             memoryprompt=""
-        else :    
-            memoryprompt+='"'
         self.last_activated=memoryprompt
         #generate responses to prompt
-        prompt=messagesender+": "+message+memoryprompt+" Malkuth:"
+        prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
         generatedsentences=self.scentgen.inference_session(prompt,self.lastresponse)
         
         
@@ -119,7 +117,7 @@ class malkuth:
             chosensentencekw=self.kwfinder.keywords(chosenresponse)
             sentencepred= json.dumps(self.kwfinder.predicates(chosenresponse)+messagepred)
             self.MEMORY.execute("INSERT INTO PREDICATES (predicate) values(?)",[sentencepred])
-            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",chosensentence)
+            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",(chosenresponse,chosensentence[1]))
             
             pointer=self.MEMORY.execute("select seq from sqlite_sequence where name='BELIEFS'").fetchall()
             pointers=[]
