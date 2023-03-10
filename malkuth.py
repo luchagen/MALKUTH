@@ -56,7 +56,7 @@ class malkuth:
         
         #find most activated memories
         activated = [0 for i in range(len(beliefs))]
-        memoryprompt=' \n Malkuth pense : "'
+        memoryprompt=' \nMalkuth pense : "'
         for pred in messagepred:
             activations=[]
             for i in range(len(memorypred)):
