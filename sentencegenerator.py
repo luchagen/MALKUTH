@@ -87,9 +87,7 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
                 elif item == memquottoken and record == False:
                     record = True
                 if record ==True:
-                    gen_tokens.append(item)
-                
-            gen_tokens = gen_tokens.tolist()
+                    gen_tokens.append(item.item())
             generated_ngram = generated_ngrams[idx]
             for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
                 prev_ngram_tuple = tuple(ngram[:-1])
@@ -126,8 +124,7 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
 class SentenceGenerator():
     MODEL_NAME = "bigscience/bloom-petals"
     #MODEL_NAME= "bigscience/bloomz-petals"
-    tokenizer = BloomTokenizerFast.from_pretrained(MODEL_NAME)
-    model = DistributedBloomForCausalLM.from_pretrained(MODEL_NAME)
+    
     # tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
     # model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models").cuda()
     #proposed values (for small LMs)
@@ -140,18 +137,19 @@ class SentenceGenerator():
     # stopcriteria= generation_stopping_criteria.StoppingCriteriaList()
     # stopcriteria.append(StopWordCriteria(stoptokens))
     stoptokens =[] #end of message detection tokens.
-    metacontext=tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"]
     context=[] #old messages stored as tokens
     memquottoken=[] #token that delimit memories, for use in a repetition constraint
     
     
     def __init__(self, sentencesperquery:int,sequencelength:int,shorttermmemory_size:int,topp:float,topk:int):
+        self.tokenizer = BloomTokenizerFast.from_pretrained(self.MODEL_NAME)
+        self.model = DistributedBloomForCausalLM.from_pretrained(self.MODEL_NAME)
         self.sentencesperquery=sentencesperquery #number of sentences generated for memory-based choice
         self.sequencelength=sequencelength #max length of a response in tokens
         self.topp=topp #top p sampling 
         self.topk=topk #top k sampling (not used)
         self.shorttermmemory_size=shorttermmemory_size #size of the memory of the inference session in number of messages
-        
+        self.metacontext=self.tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"]
         #We autodetect the end of message detection tokens
         a= self.tokenizer(" ?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])

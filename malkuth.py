@@ -15,7 +15,7 @@ import parameters
 import utils
 
 class malkuth:
-    MEMORY =  sl.connect('MEMORY.db')
+    MEMORY =  sl.connect('MEMORY.db', check_same_thread=False)
     kwfinder=keywordsfinder.KeywordsFinder()
     beefcomp=beliefcomparator.BeliefComparator()
     writememory=False
@@ -76,13 +76,13 @@ class malkuth:
         for i in range(min(len(tobeaddedbeliefs),4)):
                 memoryprompt+=  " \n " + tobeaddedbeliefs[i] 
         
-        if memoryprompt ==' \n Malkuth pense : "':
+        if memoryprompt ==' \nMalkuth pense : "':
             memoryprompt=""
         else :    
-            memoryprompt+='"'
+            memoryprompt+=' "'
         self.last_activated=memoryprompt
         #generate responses to prompt
-        prompt=messagesender+": "+message+memoryprompt+" Malkuth:"
+        prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
         generatedsentences=self.scentgen.inference_session(prompt,self.lastresponse)
         
         
@@ -120,7 +120,7 @@ class malkuth:
             chosensentencekw=self.kwfinder.keywords(chosenresponse)
             sentencepred= json.dumps(self.kwfinder.predicates(chosenresponse)+messagepred)
             self.MEMORY.execute("INSERT INTO PREDICATES (predicate) values(?)",[sentencepred])
-            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",chosensentence)
+            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",(chosenresponse,1.0))
             
             pointer=self.MEMORY.execute("select seq from sqlite_sequence where name='BELIEFS'").fetchall()
             pointers=[]
