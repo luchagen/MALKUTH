@@ -19,6 +19,7 @@ class malkuth:
     kwfinder=keywordsfinder.KeywordsFinder()
     beefcomp=beliefcomparator.BeliefComparator()
     writememory=False
+    lastquestion=""
     lastresponse=""
     last_video=""
     last_activated=""
@@ -83,7 +84,7 @@ class malkuth:
         self.last_activated=memoryprompt
         #generate responses to prompt
         prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
-        generatedsentences=self.scentgen.inference_session(prompt,self.lastresponse)
+        generatedsentences=self.scentgen.inference_session(prompt,self.lastquestion,self.lastresponse)
         
         
         testsentences=[]
@@ -112,8 +113,10 @@ class malkuth:
         chosensentence = (sen, 1.0)
         chosenresponse=chosensentence[0][len(prompt):]
         
+        self.lastquestion=""
+        self.lastquestion+=messagesender+": "+message
         self.lastresponse=""
-        self.lastresponse+=chosensentence[0] #save the current Q/A for preserving its tensors into the sentence generator context
+        self.lastresponse+=chosensentence[0][len(prompt):] #save the current Q/A for preserving its tensors into the sentence generator context
         
         #save to MEMORY database
         if self.writememory == True:
