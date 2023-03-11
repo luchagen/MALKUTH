@@ -8,11 +8,8 @@ import discord
 import asyncio
 from discord.ext import commands
 import MagickEditor
-import contextvars
-import functools
 import parameters
 import attachmentutils
-from time import sleep
 import malkuth
 
 malkmagic=MagickEditor.MagickEditor()
