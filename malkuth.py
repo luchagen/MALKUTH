@@ -57,7 +57,7 @@ class malkuth:
         
         #find most activated memories
         activated = [0 for i in range(len(beliefs))]
-        memoryprompt=' \nMalkuth pense : '
+        memoryprompt=' \nMalkuth pense ": '
         for pred in messagepred:
             activations=[]
             for i in range(len(memorypred)):
@@ -75,10 +75,12 @@ class malkuth:
                 tobeaddedbeliefs.append(beliefs[i][0])
         tobeaddedbeliefs= list(set(tobeaddedbeliefs))
         for i in range(min(len(tobeaddedbeliefs),4)):
-                memoryprompt+=  " \n "+ ' " ' + tobeaddedbeliefs[i] +  ' " '
+                memoryprompt+=  " \n" + tobeaddedbeliefs[i]
         
-        if memoryprompt ==' \nMalkuth pense : ':
+        if memoryprompt ==' \nMalkuth pense ": ':
             memoryprompt=""
+        else:
+            memoryprompt+='"'
         self.last_activated=memoryprompt
         #generate responses to prompt
         prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
