@@ -17,7 +17,7 @@ import utils
 class malkuth:
     MEMORY =  sl.connect('MEMORY.db', check_same_thread=False)
     kwfinder=keywordsfinder.KeywordsFinder()
-    beefcomp=beliefcomparator.BeliefComparator()
+    beefcomp=beliefcomparator.BeliefComparator(kwfinder)
     writememory=False
     lastquestion=""
     lastresponse=""
@@ -75,12 +75,13 @@ class malkuth:
                 tobeaddedbeliefs.append(beliefs[i][0])
         tobeaddedbeliefs= list(set(tobeaddedbeliefs))
         for i in range(min(len(tobeaddedbeliefs),4)):
-                memoryprompt+=  " \n " + tobeaddedbeliefs[i] 
+                memoryprompt+=  " \n" + tobeaddedbeliefs[i]
         
-        if memoryprompt ==' \nMalkuth pense : "':
+
+        if memoryprompt ==' \nMalkuth pense ": ':
             memoryprompt=""
-        else :    
-            memoryprompt+=' "'
+        else:
+            memoryprompt+='"'
         self.last_activated=memoryprompt
         #generate responses to prompt
         prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
@@ -109,13 +110,12 @@ class malkuth:
                 
             #for each generated sentence, the belief comparator will receive (the sentence, the list of beliefs to test the sentence against)
             testsentences.append((sen,beliefs))
-        #chosensentence=self.beefcomp.mostbelievable(testsentences)
-        chosensentence = (sen, 1.0)
+        chosensentence=self.beefcomp.mostbelievable(testsentences)
         chosenresponse=chosensentence[0][len(prompt):]
         
         self.lastquestion=""
-        self.lastquestion+=messagesender+": "+message
         self.lastresponse=""
+        self.lastquestion+=messagesender+": "+message
         self.lastresponse+=chosensentence[0][len(prompt):] #save the current Q/A for preserving its tensors into the sentence generator context
         
         #save to MEMORY database
@@ -123,8 +123,8 @@ class malkuth:
             chosensentencekw=self.kwfinder.keywords(chosenresponse)
             sentencepred= json.dumps(self.kwfinder.predicates(chosenresponse)+messagepred)
             self.MEMORY.execute("INSERT INTO PREDICATES (predicate) values(?)",[sentencepred])
-            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",(chosenresponse,1.0))
-            
+            self.MEMORY.execute("INSERT INTO BELIEFS (belief, strength) values(?,?)",(chosenresponse,chosensentence[1]))
+
             pointer=self.MEMORY.execute("select seq from sqlite_sequence where name='BELIEFS'").fetchall()
             pointers=[]
             for kw in chosensentencekw:

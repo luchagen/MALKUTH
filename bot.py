@@ -27,7 +27,7 @@ bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 
 def initialize_lm():
     global babamalk
-    babamalk= malkuth.malkuth(10,100,0.9,3,20,True)
+    babamalk= malkuth.malkuth(5,100,0.9,3,20,True)
 
 def babamalkreply(message):
     try:
