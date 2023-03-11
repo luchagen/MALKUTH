@@ -163,7 +163,6 @@ class KeywordsFinder:
                         where[i]+=groups[0]
                         for j in range(1,len(groups)): 
                             where.append(where[i]+ groups[j])
-                    print(where)
 
     def addhow(self,how,child,predicates):
         groups= self.addtogroup(child, predicates)

@@ -31,45 +31,23 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
             All ngrams of size `ngram_size` can only occur once.
     """
 
-    def __init__(self, ngram_size: int, memquottoken, min_logits: float = -1e8):
+    def __init__(self, ngram_size: int,usedngrams:dict, min_logits: float = -1e8):
         if not isinstance(ngram_size, int) or ngram_size <= 0:
             raise ValueError(f"`ngram_size` has to be a strictly positive integer, but is {ngram_size}")
         self.ngram_size = ngram_size
-        self.memquottoken = memquottoken
         self.min_logits = min_logits
-        self.past_tokens = None
+        self.usedngrams = usedngrams
         
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         num_batch_hypotheses = scores.shape[0]
         cur_len = input_ids.shape[-1]
-        banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, input_ids, num_batch_hypotheses, cur_len,self.memquottoken)
+        banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, input_ids, num_batch_hypotheses, cur_len)
         
         
         for i, banned_tokens in enumerate(banned_batch_tokens):
             scores[i, banned_tokens] = -float("inf")
 
         return scores
-    
-    def _get_ngrams(self,ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, memquottoken):
-        generated_ngrams = [{} for _ in range(num_hypos)]
-        for idx in range(num_hypos):
-            gen_tokens = prev_input_ids[idx].tolist()
-            gen_tokens= []
-            record=True
-            for item in prev_input_ids[idx]:
-                if item == memquottoken and record ==True:
-                    record = False
-                elif item == memquottoken and record == False:
-                    record = True
-                if record ==True:
-                    gen_tokens.append(item.item())
-                
-            #gen_tokens = gen_tokens.tolist()
-            generated_ngram = generated_ngrams[idx]
-            for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
-                prev_ngram_tuple = tuple(ngram[:-1])
-                generated_ngram[prev_ngram_tuple] = generated_ngram.get(prev_ngram_tuple, []) + [ngram[-1]]
-        return generated_ngrams
 
 
     def _get_generated_ngrams(self,banned_ngrams, prev_input_ids, ngram_size, cur_len):
@@ -80,14 +58,14 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
 
 
     def _calc_banned_ngram_tokens(
-        self, ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, cur_len: int, memquottoken
+        self, ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, cur_len: int,
     ) -> List[Iterable[int]]:
         """Copied from fairseq for no_repeat_ngram in beam_search"""
         if cur_len + 1 < ngram_size:
             # return no banned tokens if we haven't generated no_repeat_ngram_size tokens yet
             return [[] for _ in range(num_hypos)]
 
-        generated_ngrams = self._get_ngrams(ngram_size, prev_input_ids, num_hypos, memquottoken)
+        generated_ngrams = [self.usedngrams for _ in range(num_hypos)]
 
         banned_tokens = [
             self._get_generated_ngrams(generated_ngrams[hypo_idx], prev_input_ids[hypo_idx], ngram_size, cur_len)
@@ -99,8 +77,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
 
     
 class SentenceGenerator():
-    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
-    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
+    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
     #proposed values (for small LMs)
     sentencesperquery=10
     sequencelength=25
@@ -122,7 +100,7 @@ class SentenceGenerator():
         self.topp=topp #top p sampling 
         self.topk=topk #top k sampling (not used)
         self.shorttermmemory_size=shorttermmemory_size #size of the memory of the inference session in number of messages
-        
+        self.trigramlists=[] #trigrams that have already be done 
         #We autodetect the end of message detection tokens
         a= self.tokenizer(" ?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
@@ -143,30 +121,28 @@ class SentenceGenerator():
         a= self.tokenizer("keter.",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
         
-        #we search for markers of a memory information
-        memquot= self.tokenizer(' "',return_tensors="pt")["input_ids"]
-        self.memquottoken=memquot[-1][-1]
         
-        self.logitsprocessors = logits_process.LogitsProcessorList()
-        self.logitsprocessors.append(NoRepeatNGramWMemLogitsProcessor(3,self.memquottoken))
         self.stopcriteria = stopping_criteria.StoppingCriteriaList()
         self.stopcriteria.append(StopWordCriteria(self.stoptokens))
         
-    def generate_sentences(self,context,prompt: str):
+    def generate_sentences(self,context,prompt: str,usedtrigrams: dict):
             inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             
+            logitsprocessors = logits_process.LogitsProcessorList()
+            logitsprocessors.append(NoRepeatNGramWMemLogitsProcessor(3,usedtrigrams))
+            
+            tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,num_return_sequences =self.sentencesperquery,temperature=0.7,no_repeat_ngram_size=3,logits_processor=logitsprocessors,stopping_criteria=self.stopcriteria,eos_token_id=2)
             
             for i in range(self.sentencesperquery):
-                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,early_stopping=True,temperature=0.7,no_repeat_ngram_size=3,logits_processor=self.logitsprocessors,stopping_criteria=self.stopcriteria,eos_token_id=2)
-                sentence=self.tokenizer.decode(tokenout[0][len(context[0]):])
+                sentence=self.tokenizer.decode(tokenout[i][len(context[0]):])
                 sentenceb=prompt
                 j=len(prompt)
                 
                 #The sentence generation has a tendency to add unnecessary quotes,
                 #and to generate a full dialogue rather than just one response, so we used to add delimiters.
-                #we keep those in case the model refuses to stop generation wen constrained to do it (petals).
+                #we keep those in case the model refuses to stop generation when constrained to do it (petals).
                 #(note , perhaps the end of sentence delimiters might sometimes cut the answer too short)
                 while j< len(sentence):
                     if sentence[j]=='«'or sentence[j] == '»' or sentence[j] =='"':
@@ -182,24 +158,36 @@ class SentenceGenerator():
                 
                 #print(sentenceb)
                 
-            return(sentences)
+            return sentences
     
     #we take in a fonction that tokenises and memorises the tokens of past discussions,
     #for generation to take immediate past sentences into account without regenerating the tokens
-    def inference_session(self,prompt: str,last_response: str):
+    def inference_session(self,prompt: str,last_question : str,last_response: str):
         #generate tokens for interaction n-1
-        self.context.append(self.tokenizer(last_response+" \n ", return_tensors="pt")["input_ids"])
         
+        
+        self.context.append(self.tokenizer(last_question+ " \n" +last_response+" \n", return_tensors="pt")["input_ids"])
         if len(self.context)>self.shorttermmemory_size:
             self.context.pop(0)
         
+        newtrigrams=self._get_ngrams(3, self.tokenizer(last_response, return_tensors="pt")["input_ids"][0])
+        self.trigramlists.append(newtrigrams)
+        if len(self.trigramlists) > self.shorttermmemory_size :
+            self.trigramlists.pop(0)
+            
         #hypercontext + context  
         hyperprompt = torch.cat((self.context[0],self.metacontext),1)
         for i in range(1,len(self.context)):
             hyperprompt=torch.cat((hyperprompt, self.context[i]), 1)
+       
+        usedtrigrams={}
+        for trigrams in self.trigramlists:
+            usedtrigrams.update(trigrams)
+        gscent = self.generate_sentences(hyperprompt,prompt,usedtrigrams)
         
-        gscent = self.generate_sentences(hyperprompt,prompt)
         
+            
+            
         return gscent
     
     def free_text_gen(self,prompt):
@@ -208,4 +196,11 @@ class SentenceGenerator():
         tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,temperature=0.7,no_repeat_ngram_size=3)
         sentence=self.tokenizer.decode(tokenout[0])
         return sentence[(len(prompt)-1):]
-        
+    
+    def _get_ngrams(self,ngram_size: int, gen_output_ids: torch.Tensor):
+        gen_tokens = gen_output_ids.tolist()
+        generated_ngram = {}
+        for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
+                prev_ngram_tuple = tuple(ngram[:-1])
+                generated_ngram[prev_ngram_tuple] = generated_ngram.get(prev_ngram_tuple, []) + [ngram[-1]]
+        return generated_ngram
