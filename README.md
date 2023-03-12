@@ -2,14 +2,14 @@
 discord bot powered by Bloom-Petals with memory augmentation powered by large-camembert-sentence and stanford-nlp
 
 
-This branch in particular is powered by a local, significantly smaller version of bloom. 
-
-
+You can change the sentencegenerator to sentencegeneratorlocal for a local, significantly smaller version of bloom (which you can also run on windows). 
 You can change the model version depending on what your processing capabilities can handle in sentencegenerator.py (see https://huggingface.co/models?other=bloom)
+
+
 <h6>getting started</h6>
 
 
-You need a cuda enabled graphics card for the code to run as is. If that's not your case, delete every mention of .cuda() in sentencegenerator.py
+To make use of gpu power, you need an Nvidia card with Cuda enabled. If that's your case, simply add .cuda() after every tokenization as well as after the language model instanciation in sentencegenerator.py
 > required python packages:
 >  - transformers
 >  - sentence-transformers
