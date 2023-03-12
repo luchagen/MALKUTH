@@ -54,13 +54,12 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
             All ngrams of size `ngram_size` can only occur once.
     """
 
-    def __init__(self, prefixlength: int, ngram_size: int,usedngrams:dict, min_logits: float = -1e8):
-        if not isinstance(ngram_size, int) or ngram_size <= 0:
-            raise ValueError(f"`ngram_size` has to be a strictly positive integer, but is {ngram_size}")
+    def __init__(self, ngram_size: int,usedngrams:dict, min_logits: float = -1e8):
+        if not isinstance(usedngrams, dict) :
+            raise ValueError(f"`usedngrams` has to be a dictionnary, but is {usedngrams}")
         self.ngram_size = ngram_size
         self.min_logits = min_logits
         self.usedngrams = usedngrams
-        self.wait_until_starting = prefixlength
         self.past_tokens = None
         self.cur_len=0
         
@@ -68,17 +67,11 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
         if tokens_id is not None:
             self.past_tokens = tokens_id
             num_batch_hypotheses=hypo_ids.shape[0]
-            self.wait_until_starting -= 1
             self.cur_len+=1
         if self.past_tokens is not None:
-            mask1= (self.past_tokens == 0)
-            mask1[:,0]=True
-            mask = (self.wait_until_starting < 0) & mask1
-            logits += self.min_logits * mask
             banned_batch_tokens = self._calc_banned_ngram_tokens(self.ngram_size, tokens_id, num_batch_hypotheses, self.cur_len)
-
             for i, banned_tokens in enumerate(banned_batch_tokens):
-                logits[mask[i,0], banned_tokens] = self.min_logits
+                logits[i, banned_tokens] = self.min_logits
 
         return logits
     
@@ -99,10 +92,9 @@ class NoRepeatNGramWMemConstraint(generation_constraints.ABCBloomConstraint):
             return [[] for _ in range(num_hypos)]
 
 
-        generated_ngrams = [self.usedngrams for _ in range(num_hypos)]
 
         banned_tokens = [
-            self._get_generated_ngrams(generated_ngrams[hypo_idx], prev_input_ids[hypo_idx], ngram_size, cur_len)
+            self._get_generated_ngrams(self.usedngrams, prev_input_ids[hypo_idx], ngram_size, cur_len)
             for hypo_idx in range(num_hypos)
         ]
         return banned_tokens
@@ -168,8 +160,8 @@ class SentenceGenerator():
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             
-            tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(len(inputs),3,usedtrigrams)],eos_token_id=2)
-            for i in range(self.sentencesperquery):
+            tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,usedtrigrams)],eos_token_id=2)
+            for i in range(len(tokenout)):
                 sentence=self.tokenizer.decode(tokenout[i][len(context[0]):])
                 sentenceb=prompt
                 j=len(prompt)
