@@ -12,6 +12,8 @@ from petals import DistributedBloomForCausalLM
 # from transformers import generation_stopping_criteria
 from typing import Iterable, List
 from petals.utils import generation_constraints 
+import warnings
+
 
 #new transformers criterium for stopping generation when encountering tokens we count as stopwords.
 # class StopWordCriteria(generation_stopping_criteria.StoppingCriteria):
@@ -159,8 +161,14 @@ class SentenceGenerator():
             inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
-            
-            tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,usedtrigrams)],eos_token_id=2)
+            warnings.filterwarnings("error")
+            try:
+                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,usedtrigrams)],eos_token_id=2)
+            except petals.routing.sequence_manager.MissingBlocksError:
+                return("ohno")
+            except:
+                return("oh")
+            warnings.resetwarnings()
             for i in range(len(tokenout)):
                 sentence=self.tokenizer.decode(tokenout[i][len(context[0]):])
                 sentenceb=prompt

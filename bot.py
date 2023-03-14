@@ -65,29 +65,40 @@ async def on_message(message):
         return
     if bot.user.mentioned_in(message):
         async with message.channel.typing():
-            try:
-                reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkreply,message), timeout=600)
-            except asyncio.exceptions.TimeoutError:
-                reply=("timeout. check the health of the petals network at health.petals.ml",0)
-            print(reply)
+            reply= await asyncio.get_running_loop().run_in_executor(None, babamalkreply,message)
             await message.channel.send(reply[0])
     #attachmentlogging
-    if attachmentutils.checklogging(message.channel.guild.name, message.channel.name):
+    if attachmentutils.checklogging(str(message.channel.guild.id), message.channel.name):
         for thing in message.embeds:
-            if thing.url[:18]!='https://tenor.com/' :
-                attachmentutils.storepicture(thing.url,message.channel.name)
+                imgurl="notfound"
+                if thing.url!=None:
+                    if thing.url[:18]!='https://tenor.com/' :
+                        imgurl=thing.url
+                if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
+                    if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
+                        imgurl=thing.thumbnail.proxy_url
+                if thing.image != None and thing.image.proxy_url!=None :
+                    if thing.image.proxy_url[:18]!='https://tenor.com/'  :
+                        imgurl=thing.image.proxy_url
+                if thing.image != None and thing.image.url!=None :
+                    if thing.image.url[:18]!='https://tenor.com/'  :
+                        imgurl=thing.image.url
+                if thing.thumbnail !=None and thing.thumbnail.url!=None :
+                    if thing.thumbnail.url[:18]!='https://tenor.com/' :
+                        imgurl=thing.thumbnail.url
+                attachmentutils.storepicture(imgurl,message.channel.name)
         for thing in message.attachments :
             if thing.url[:18]!='https://tenor.com/' :
                 attachmentutils.storepicture(thing.url,message.channel.name)
                 
     await bot.process_commands(message)
 
-@bot.command(description='Send forth malkuth to the lands of youtube')
+@bot.command(description='Send forth malkuth to the lands of youtube. Uses malkuths recent memories (see wassup) as keywords for research.')
 async def malkuth_on_youtube(ctx, ytvideo: str=""):
     async with ctx.channel.typing():
         await ctx.send(babamalk.youtube_video(ytvideo))
     
-@bot.command(description='What s on your mind malkuth?')
+@bot.command(description='What s on your mind malkuth? Check what memories are recent for malkuth, and would be used for a possible youtube research using malkuth_on_youtube')
 async def wassup(ctx):
     async with ctx.channel.typing():
         await ctx.send(babamalk.on_my_mind())
@@ -120,10 +131,7 @@ async def debug(ctx , command: str=''):
 @bot.command(description='unconstrained interaction with the language model')
 async def prompt(ctx, prompt: str):
     async with ctx.channel.typing():
-        try:
-            reply= await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, babamalkfreeprompt,prompt), timeout=600)
-        except asyncio.exceptions.TimeoutError:
-            reply=("timeout. check the health of the petals network at health.petals.ml")
+        reply= await asyncio.get_running_loop().run_in_executor(None, babamalkfreeprompt,prompt)
         await ctx.send(reply)
 
 @bot.command(description='program (kinda) the response Malkuth would say to a (or a string of) question(s)')
@@ -135,8 +143,8 @@ async def program(ctx, questions: str, answer: str):
 @bot.command(description="activate or deactivate logging attachments into Malkuth's memory for this channel")
 async def attachmentlog(ctx):
     async with ctx.channel.typing():
-        logging_activated=attachmentutils.changelogging(ctx.channel.guild.name, ctx.channel.name)
-        if attachmentutils.checklogging(ctx.channel.guild.name, ctx.channel.name):
+        logging_activated=attachmentutils.changelogging(str(ctx.channel.guild.id), ctx.channel.name)
+        if attachmentutils.checklogging(str(ctx.channel.guild.id), ctx.channel.name):
             await ctx.send(" :question: Malkuth will now log all attachments posted in this channel.")
         else:
             await ctx.send(" :question: Malkuth will now stop logging all attachments posted in this channel.")
@@ -146,7 +154,9 @@ async def picturetypes(ctx):
         await ctx.send(str(attachmentutils.getalltables()))
         
 @bot.command(description="send a random picture from one of Malkuth's library")
-async def randompicture(ctx, what : str, do_logging: int =0 ):
+async def randompicture(ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library") ):
+    if what=="":
+        what= ctx.channel.name
     async with ctx.channel.typing():
         img = attachmentutils.getrandompicture(what)
         if isinstance(img[0],str):
@@ -159,12 +169,16 @@ async def randompicture(ctx, what : str, do_logging: int =0 ):
                 attachmentutils.storepicture(img[0][0],ctx.channel.name)
 
 @bot.command(description="delete a picture from one of Malkuth's library")
-async def deletepicture(ctx, what : str, pictureid: int):
+async def deletepicture(ctx, what : str=commands.parameter(default="", description="The library you want to delete a picture from, empty for the current channel"), pictureid: int=0 ):
+    if what=="":
+           what= ctx.channel.name
     async with ctx.channel.typing():
         img = attachmentutils.deleteonepicture(what,pictureid)
                 
 @bot.command(description="send a picture from one of Malkuth's library")
-async def picture(ctx, what : str, pictureid: int, do_logging: int =0 ):
+async def picture(ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , pictureid: int=commands.parameter(default=1, description="The id of the picture you want.") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library")   ):
+    if what=="":
+        what= ctx.channel.name
     async with ctx.channel.typing():
         img = attachmentutils.getonepicture(what,pictureid)
         if isinstance(img[0],str):
@@ -193,5 +207,33 @@ async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str, do_l
                     if do_logging==1:
                         attachmentutils.storepicture(img[0],ctx.channel.name)
                     
+@bot.command(description="completely reload one channels library. Use as a last resort, some images might not register.")
+async def reloadattachmentlibrary(ctx , areyousureaboutwhatyouredoing:str):
+    if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
+        async with ctx.channel.typing():
+            attachmentutils.droplibrary(ctx.channel.name)
+            async for message in ctx.channel.history(limit=None):
+                for thing in message.embeds:
+                    imgurl="notfound"
+                    if thing.url !=None:
+                        if thing.url[:18]!='https://tenor.com/' :
+                            imgurl=thing.url
+                    if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
+                        if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
+                            imgurl=thing.thumbnail.proxy_url
+                    if thing.image != None and thing.image.proxy_url!=None :
+                        if thing.image.proxy_url[:18]!='https://tenor.com/'  :
+                            imgurl=thing.image.proxy_url
+                    if thing.image != None and thing.image.url!=None :
+                        if thing.image.url[:18]!='https://tenor.com/'  :
+                            imgurl=thing.image.url
+                    if thing.thumbnail !=None and thing.thumbnail.url!=None :
+                        if thing.thumbnail.url[:18]!='https://tenor.com/' :
+                            imgurl=thing.thumbnail.url
+                    attachmentutils.storepicture(imgurl,message.channel.name)
+                for thing in message.attachments :
+                    if thing.url[:18]!='https://tenor.com/' :
+                        attachmentutils.storepicture(thing.url,message.channel.name)
+            await ctx.send(" :question: Malkuth has successfully reregistered the library associated with this channel and saved all pictures in message history.")
 
 bot.run(parameters.discord_api_key)

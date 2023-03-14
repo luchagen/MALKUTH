@@ -17,19 +17,26 @@ def clean(table_name: str):
     return ''.join( chr for chr in table_name if chr.isalnum() )
 
 def getallpictures(name: str):
-    qry = "SELECT attachment FROM {}".format(clean(name))
-    return PICMEMORY.execute(qry).fetchall()
+    try:
+        qry = "SELECT attachment FROM {}".format(clean(name))
+        return PICMEMORY.execute(qry).fetchall()
+    except sl.OperationalError:
+        return (["No library by this name. If you entered a channel/did not enter anything, check if logging was activated, or change the channel name to something different from what already exists (NOT case sensitive)"])
+    
 
 def deleteonepicture(name: str, i):
-    qry ="DELETE FROM garderiedeklee WHERE id=(?)".format(clean(name))
+    qry ="DELETE FROM {} WHERE id=(?)".format(clean(name))
     PICMEMORY.execute(qry,[i])
 
 def getonepicture(name: str,i):
+    
     qry1 = "SELECT id FROM {}".format(clean(name))
     qry = "SELECT attachment FROM {} WHERE id=(?)".format(clean(name))
-    nbr = len(PICMEMORY.execute(qry1).fetchall())
-    picture = PICMEMORY.execute(qry,[i]).fetchall()
-    
+    try:
+        nbr = len(PICMEMORY.execute(qry1).fetchall())
+        picture = PICMEMORY.execute(qry,[i]).fetchall()
+    except sl.OperationalError:
+        return (["No library by this name. If you entered a channel/did not enter anything, check if logging was activated, or change the channel name to something different from what already exists (NOT case sensitive)"])
     if picture==[]:
         return (["No images with this id. the length of this library is " + str(nbr)])
     return picture
@@ -41,20 +48,35 @@ def getalltables():
     return [title[0] for title in tables]
 
 def getrandompicture(name: str):
-    qry = "SELECT id FROM {}".format(clean(name))
-    nbr = len(PICMEMORY.execute(qry).fetchall())
-    return getonepicture(name,randint(0,nbr))
-
+    try:
+        qry = "SELECT attachment FROM {} ORDER BY RANDOM() LIMIT 1".format(clean(name))
+        picture = PICMEMORY.execute(qry).fetchall()
+        if picture==[]:
+            return (["No images in this library."])
+        return picture
+    except sl.OperationalError:
+        return (["No library by this name. If you entered a channel/did not enter anything, check if logging was activated, or change the channel name to something different from what already exists (NOT case sensitive)"])
+        
+        
 def storepicture(attachment: str,name: str):
     cleansed=clean(name)
     if (PICMEMORY.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=(?)",[cleansed]).fetchall() ==[(0,)]):
-        qry=""" CREATE TABLE {} (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    attachment TEXT
-                ); """.format(clean(name))
-        PICMEMORY.execute(qry)
-    qry= ("INSERT into {} (attachment) values(?)".format(clean(name)))
-    PICMEMORY.execute(qry,([attachment]))
+        try:
+            qry=""" CREATE TABLE {} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        attachment TEXT
+                    ); """.format(clean(name))
+            PICMEMORY.execute(qry)
+        except sl.OperationalError:
+            PICMEMORY.rollback()
+            print("OperationalError, probably tried to create a table that already exists")
+    try:
+        qry= ("INSERT into {} (attachment) values(?)".format(clean(name)))
+        PICMEMORY.execute(qry,([attachment]))
+    except sl.OperationalError:
+        PICMEMORY.rollback()
+        print("Failed to put this attachment inside the mentioned table, probably the table doesn't exist")
+        return
     PICMEMORY.commit()
     
 #check if logging is activated in the selected channel
@@ -74,4 +96,19 @@ def changelogging(server: str, channel:str):
             PICMEMORY.execute("UPDATE MASTER_PICTURES SET logging=0 WHERE server=(?) and channel=(?) ",(server,channel))
         else:
             PICMEMORY.execute("UPDATE MASTER_PICTURES SET logging=1 WHERE server=(?) and channel=(?) ",(server,channel))
+    PICMEMORY.commit()
+    
+def droplibrary(name: str):
+    try:
+        qry = "DROP TABLE {}".format(clean(name))
+        PICMEMORY.execute(qry)
+        qry=""" CREATE TABLE {} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        attachment TEXT
+                    ); """.format(clean(name))
+        PICMEMORY.execute(qry)
+     
+    except sl.OperationalError:
+        PICMEMORY.rollback()
+        return (["No library by this name. If you entered a channel/did not enter anything, check if logging was activated, or change the channel name to something different from what already exists (NOT case sensitive)"])
     PICMEMORY.commit()
