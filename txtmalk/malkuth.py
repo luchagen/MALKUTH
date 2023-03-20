@@ -9,9 +9,7 @@ import beliefcomparator
 import belief
 import sentencegenerator
 import keywordsfinder
-import http.client
 import json 
-import parameters
 import utils
 
 class malkuth:
@@ -135,53 +133,7 @@ class malkuth:
             self.MEMORY.executemany(qry,pointers)
             self.MEMORY.commit()
             
-        return chosenresponse,chosensentence[1]
-    
-    def youtube_video(self,link=""):
-        conn = http.client.HTTPSConnection("yt-api.p.rapidapi.com")
-        if link=="":
-            keywords=self.MEMORY.execute("select (keyword) from KEYWORDSPOINTERS").fetchall()
-            keywords=keywords[(len(keywords)-min(5,len(keywords))):]
-            rsrch=b""
-            for kw in keywords:
-                rsrch+=kw[0].encode("ascii","ignore")
-                rsrch+=b"%20"
-            research=b'/search?query='+rsrch+b'&pretty=1'
-            headers = {
-                'X-RapidAPI-Key': parameters.youtube_api_key,
-                'X-RapidAPI-Host': "yt-api.p.rapidapi.com"
-            }
-            
-            conn.request("GET", research.decode("ascii"), headers=headers)
-            
-            res = conn.getresponse()
-            data = res.read()
-            jsonised=json.loads(data)
-            self.last_video=jsonised["data"][0]
-            return("https://youtu.be/"+jsonised["data"][0]["videoId"]+self.scentgen.free_text_gen(jsonised["data"][0]["title"]))
-        
-            
-        else:
-            while link.find("/")!=-1:
-                link=link[link.find("/")+1:]
-            headers = {
-                'X-RapidAPI-Key': parameters.youtube_api_key,
-                'X-RapidAPI-Host': "yt-api.p.rapidapi.com"
-            }
-            conn.request("GET", "/video?id="+link, headers=headers)
-            res = conn.getresponse()
-            data = res.read()
-            jsonised=json.loads(data)
-            self.last_video=jsonised
-            return ("https://youtu.be/"+jsonised["id"]+self.scentgen.free_text_gen(jsonised["title"]))
-    
-    def on_my_mind(self):
-        keywords=self.MEMORY.execute("select (keyword) from KEYWORDSPOINTERS").fetchall()
-        keywords=keywords[(len(keywords)-min(5,len(keywords))):]
-        resp="Je suis en ce moment en train de penser à :"
-        for kw in keywords:
-            resp+=kw[0]
-        return resp
+        return chosenresponse,chosensentence[1],self.last_activated
     
     def freeprompt(self,prompt):
         return self.scentgen.free_text_gen(prompt)

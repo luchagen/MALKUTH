@@ -5,17 +5,14 @@ Created on Thu Jan 26 22:11:22 2023
 @author: suric
 """
 import discord
-import asyncio
 from discord.ext import commands
-import MagickEditor
-import contextvars
-import functools
-import parameters
-import attachmentutils
-from time import sleep
-import malkuth
 
-malkmagic=MagickEditor.MagickEditor()
+import parameters
+import imagemalk.imagemalkcog
+import txtmalk.malkuthcog
+
+
+
 
 description = '''Malkuth has some plans to dominate the world.'''
 
@@ -25,215 +22,19 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 
 
-def initialize_lm():
-    global babamalk
-    babamalk= malkuth.malkuth(3,100,0.9,3,20,True)
-
-def babamalkreply(message):
-    try:
-        if message.content[:7]== '@MALKUTH':
-            reply=babamalk.generate_response(message.content[8:],message.author.name)
-        elif message.content[:22] == '<@1068268891580682293>':
-            reply=babamalk.generate_response(message.content[22:],message.author.name)
-        else :
-            reply=babamalk.generate_response(message.content,message.author.name)
-            
-        if reply[-4:] == '</s>':
-            reply =reply[:-4]
-        return reply
-    except NameError:
-        return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0)
-
-def babamalkfreeprompt(prompt):
-    try:
-        return babamalk.freeprompt(prompt)
-    except NameError:
-        return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml")
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
-    await asyncio.get_running_loop().run_in_executor(None, initialize_lm)
+    await bot.add_cog(imagemalk.imagemalkcog.imgmalkcog(bot))
+    await bot.add_cog(txtmalk.malkuthcog.malkcog(bot,parameters.youtube_api_key))
     
-
 @bot.event    
 async def on_message(message):
-    
     # we do not want the bot to reply to itself
     if message.author.id == bot.user.id:
         return
-    if bot.user.mentioned_in(message):
-        async with message.channel.typing():
-            reply= await asyncio.get_running_loop().run_in_executor(None, babamalkreply,message)
-            await message.channel.send(reply[0])
-    #attachmentlogging
-    if attachmentutils.checklogging(str(message.channel.guild.id), message.channel.name):
-        for thing in message.embeds:
-                imgurl="notfound"
-                if thing.url!=None:
-                    if thing.url[:18]!='https://tenor.com/' :
-                        imgurl=thing.url
-                if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
-                    if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
-                        imgurl=thing.thumbnail.proxy_url
-                if thing.image != None and thing.image.proxy_url!=None :
-                    if thing.image.proxy_url[:18]!='https://tenor.com/'  :
-                        imgurl=thing.image.proxy_url
-                if thing.image != None and thing.image.url!=None :
-                    if thing.image.url[:18]!='https://tenor.com/'  :
-                        imgurl=thing.image.url
-                if thing.thumbnail !=None and thing.thumbnail.url!=None :
-                    if thing.thumbnail.url[:18]!='https://tenor.com/' :
-                        imgurl=thing.thumbnail.url
-                attachmentutils.storepicture(imgurl,message.channel.name)
-        for thing in message.attachments :
-            if thing.url[:18]!='https://tenor.com/' :
-                attachmentutils.storepicture(thing.url,message.channel.name)
-                
     await bot.process_commands(message)
-
-@bot.command(description='Send forth malkuth to the lands of youtube. Uses malkuths recent memories (see wassup) as keywords for research.')
-async def malkuth_on_youtube(ctx, ytvideo: str=""):
-    async with ctx.channel.typing():
-        await ctx.send(babamalk.youtube_video(ytvideo))
-    
-@bot.command(description='What s on your mind malkuth? Check what memories are recent for malkuth, and would be used for a possible youtube research using malkuth_on_youtube')
-async def wassup(ctx):
-    async with ctx.channel.typing():
-        await ctx.send(babamalk.on_my_mind())
-        
-@bot.command(description='use your stand malkuth')
-async def heavens_gate_magick(ctx ,strength:float=0.5, image: str=""):
-    async with ctx.channel.typing():
-        if image=="":
-            images=[str(attachment) for attachment in ctx.message.attachments]
-            if len(images)==0:
-                if babamalk.last_video !="":
-                    images= [babamalk.last_video["thumbnail"][-1]["url"]]
-                else:
-                    images=[bot.user.avatar.url]
-        else : 
-            images = [image]
-        files=[]
-        for img in images:
-            file=discord.File(malkmagic.magick(img,strength))
-            files.append(file)
-        await ctx.channel.send(files=files)
-
-@bot.command(description='debug')
-async def debug(ctx , command: str=''):
-    if command == 'lastmemory':
-        await ctx.channel.send(babamalk.last_activated)
-    if command == 'lastmessage':
-        await ctx.channel.send(babamalk.lastresponse)
-
-@bot.command(description='unconstrained interaction with the language model')
-async def prompt(ctx, prompt: str):
-    async with ctx.channel.typing():
-        reply= await asyncio.get_running_loop().run_in_executor(None, babamalkfreeprompt,prompt)
-        await ctx.send(reply)
-
-@bot.command(description='program (kinda) the response Malkuth would say to a (or a string of) question(s)')
-async def program(ctx, questions: str, answer: str):
-    async with ctx.channel.typing():
-        babamalk.program(questions,answer)
-        await ctx.send(" :question: Malkuth will remember that.")
-
-@bot.command(description="activate or deactivate logging attachments into Malkuth's memory for this channel")
-async def attachmentlog(ctx):
-    async with ctx.channel.typing():
-        logging_activated=attachmentutils.changelogging(str(ctx.channel.guild.id), ctx.channel.name)
-        if attachmentutils.checklogging(str(ctx.channel.guild.id), ctx.channel.name):
-            await ctx.send(" :question: Malkuth will now log all attachments posted in this channel.")
-        else:
-            await ctx.send(" :question: Malkuth will now stop logging all attachments posted in this channel.")
-
-@bot.command(description="check what Malkuth has in stock in her library of pictures")
-async def picturetypes(ctx):
-        await ctx.send(str(attachmentutils.getalltables()))
-        
-@bot.command(description="send a random picture from one of Malkuth's library")
-async def randompicture(ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library") ):
-    if what=="":
-        what= ctx.channel.name
-    async with ctx.channel.typing():
-        img = attachmentutils.getrandompicture(what)
-        if isinstance(img[0],str):
-            await ctx.send(img[0])
-            if do_logging==1:
-                attachmentutils.storepicture(img[0],ctx.channel.name)
-        else:
-            await ctx.send(img[0][0])
-            if do_logging==1:
-                attachmentutils.storepicture(img[0][0],ctx.channel.name)
-
-@bot.command(description="delete a picture from one of Malkuth's library")
-async def deletepicture(ctx, what : str=commands.parameter(default="", description="The library you want to delete a picture from, empty for the current channel"), pictureid: int=0 ):
-    if what=="":
-           what= ctx.channel.name
-    async with ctx.channel.typing():
-        img = attachmentutils.deleteonepicture(what,pictureid)
-                
-@bot.command(description="send a picture from one of Malkuth's library")
-async def picture(ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , pictureid: int=commands.parameter(default=1, description="The id of the picture you want.") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library")   ):
-    if what=="":
-        what= ctx.channel.name
-    async with ctx.channel.typing():
-        img = attachmentutils.getonepicture(what,pictureid)
-        if isinstance(img[0],str):
-            await ctx.send(img[0])
-            if do_logging==1:
-                attachmentutils.storepicture(img[0],ctx.channel.name)
-        else:
-            await ctx.send(img[0][0])
-            if do_logging==1:
-                attachmentutils.storepicture(img[0][0],ctx.channel.name)
-        
-@bot.command(description="send every picture from one of Malkuth's library")
-async def everypicture(ctx, what : str, areyousureaboutwhatyouredoing: str, do_logging: int =0 ):
-    print(ctx.channel.name)
-    if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
-        images = attachmentutils.getallpictures(what)
-        for img in images:
-            async with ctx.channel.typing():
-         
-                if isinstance(img,str):
-                    await ctx.send(img)
-                    if do_logging==1:
-                        attachmentutils.storepicture(img,ctx.channel.name)
-                else:
-                    await ctx.send(img[0])
-                    if do_logging==1:
-                        attachmentutils.storepicture(img[0],ctx.channel.name)
-                    
-@bot.command(description="completely reload one channels library. Use as a last resort, some images might not register.")
-async def reloadattachmentlibrary(ctx , areyousureaboutwhatyouredoing:str):
-    if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
-        async with ctx.channel.typing():
-            attachmentutils.droplibrary(ctx.channel.name)
-            async for message in ctx.channel.history(limit=None):
-                for thing in message.embeds:
-                    imgurl="notfound"
-                    if thing.url !=None:
-                        if thing.url[:18]!='https://tenor.com/' :
-                            imgurl=thing.url
-                    if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
-                        if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
-                            imgurl=thing.thumbnail.proxy_url
-                    if thing.image != None and thing.image.proxy_url!=None :
-                        if thing.image.proxy_url[:18]!='https://tenor.com/'  :
-                            imgurl=thing.image.proxy_url
-                    if thing.image != None and thing.image.url!=None :
-                        if thing.image.url[:18]!='https://tenor.com/'  :
-                            imgurl=thing.image.url
-                    if thing.thumbnail !=None and thing.thumbnail.url!=None :
-                        if thing.thumbnail.url[:18]!='https://tenor.com/' :
-                            imgurl=thing.thumbnail.url
-                    attachmentutils.storepicture(imgurl,message.channel.name)
-                for thing in message.attachments :
-                    if thing.url[:18]!='https://tenor.com/' :
-                        attachmentutils.storepicture(thing.url,message.channel.name)
-            await ctx.send(" :question: Malkuth has successfully reregistered the library associated with this channel and saved all pictures in message history.")
 
 bot.run(parameters.discord_api_key)

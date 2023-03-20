@@ -77,8 +77,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
 
     
 class SentenceGenerator():
-    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
-    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-560m",cache_dir="./models")
+    tokenizer = AutoTokenizer.from_pretrained("emil2000/dialogpt-for-french-language",cache_dir="./models")
+    model = AutoModelForCausalLM.from_pretrained("emil2000/dialogpt-for-french-language",cache_dir="./models")
     #proposed values (for small LMs)
     sentencesperquery=10
     sequencelength=25
