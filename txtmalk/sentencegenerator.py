@@ -12,6 +12,7 @@ from petals import DistributedBloomForCausalLM
 # from transformers import generation_stopping_criteria
 from typing import Iterable, List
 from petals.utils import generation_constraints 
+from petals.routing import sequence_manager
 import warnings
 
 
@@ -134,6 +135,7 @@ class SentenceGenerator():
         self.shorttermmemory_size=shorttermmemory_size #size of the memory of the inference session in number of messages
         self.metacontext=self.tokenizer("Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée. ", return_tensors="pt")["input_ids"]
         self.trigramlists=[] #trigrams that have already be done 
+        self.quadrigramlists=[]
         #We autodetect the end of message detection tokens
         a= self.tokenizer(" ?",return_tensors="pt")["input_ids"]
         self.stoptokens.append(a[-1][-1])
@@ -157,14 +159,14 @@ class SentenceGenerator():
         
         
         
-    def generate_sentences(self,context,prompt: str,usedtrigrams: dict):
+    def generate_sentences(self,context,prompt: str,usedtrigrams: dict,usedquadrigrams:dict):
             inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             warnings.filterwarnings("error")
             try:
-                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,usedtrigrams)],eos_token_id=2)
-            except petals.routing.sequence_manager.MissingBlocksError:
+                tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,num_beams=self.sentencesperquery,num_return_sequences=self.sentencesperquery,provided_constraints=[StopWordBloomConstraint(len(inputs),self.stoptokens),NoRepeatNGramWMemConstraint(3,usedtrigrams),NoRepeatNGramWMemConstraint(4,usedquadrigrams)],eos_token_id=2)
+            except sequence_manager.MissingBlocksError:
                 return("ohno")
             except:
                 return("oh")
@@ -208,6 +210,11 @@ class SentenceGenerator():
         self.trigramlists.append(newtrigrams)
         if len(self.trigramlists) > self.shorttermmemory_size :
             self.trigramlists.pop(0)
+        
+        newquadrigrams=self._get_ngrams(4, self.tokenizer(last_question, return_tensors="pt")["input_ids"][0])
+        self.quadrigramlists.append(newquadrigrams)
+        if len(self.quadrigramlists) > self.shorttermmemory_size :
+            self.quadrigramlists.pop(0)
             
         #hypercontext + context  
         hyperprompt = torch.cat((self.context[0],self.metacontext),1)
@@ -217,7 +224,13 @@ class SentenceGenerator():
         usedtrigrams={}
         for trigrams in self.trigramlists:
             usedtrigrams.update(trigrams)
-        gscent = self.generate_sentences(hyperprompt,prompt,usedtrigrams)
+        
+        usedquadrigrams={}
+        for quadrigrams in self.quadrigramlists:
+            usedquadrigrams.update(quadrigrams)
+        
+        gscent = self.generate_sentences(hyperprompt,prompt,usedtrigrams,usedquadrigrams)
+        
         
         
             

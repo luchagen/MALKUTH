@@ -133,7 +133,7 @@ class malkuth:
             self.MEMORY.executemany(qry,pointers)
             self.MEMORY.commit()
             
-        return chosenresponse,chosensentence[1],self.last_activated
+        return chosenresponse,chosensentence[1]
     
     def freeprompt(self,prompt):
         return self.scentgen.free_text_gen(prompt)
