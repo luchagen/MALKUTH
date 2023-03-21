@@ -4,7 +4,7 @@ Created on Sun Jan 29 00:24:53 2023
 
 @author: suric
 """
-import seamcarving
+import imagemalk.seamcarving as seamcarving
 import requests # request img from web
 import shutil # save img locally
 import imageio.v3 as iio

@@ -5,13 +5,14 @@ Created on Mon Mar 20 11:33:31 2023
 @author: suric
 """
 from discord.ext import commands
-import malkuth
+import txtmalk.malkuth as malkuth
 import asyncio
 import http.client
 import json 
 
 class malkcog(commands.Cog):
     lastresponse=None
+    lastactivated=None
     
     def __init__(self,bot,api_key):
         self.bot=bot
@@ -29,8 +30,8 @@ class malkcog(commands.Cog):
             else :
                 reply=self.babamalk.generate_response(message.content,message.author.name)
                 
-            if reply[0][-4:] == '</s>':
-                reply[0] =reply[0][:-4]
+            if reply[-4:] == '</s>':
+                reply =reply[:-4]
             return reply
         except AttributeError:
             return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0)
@@ -53,6 +54,7 @@ class malkcog(commands.Cog):
             async with message.channel.typing():
                 reply= await asyncio.get_running_loop().run_in_executor(None, self.babamalkreply,message)
                 self.lastresponse=reply[0]
+                self.lastactivated=reply[2]
                 await message.channel.send(reply[0])
                 
     @commands.command(description='Send forth malkuth to the lands of youtube. Uses malkuths recent memories (see wassup) as keywords for research.')
@@ -62,7 +64,10 @@ class malkcog(commands.Cog):
             
     @commands.command(description='debug')
     async def debug(self,ctx , command: str=''):
-        if command == 'lastmessage' or command =='':
+        if command == 'lastmemory':
+            if self.lastactivated !=None:
+                await ctx.channel.send(self.lastactivated)
+        if command == 'lastmessage':
             if self.lastresponse!=None:
                 await ctx.channel.send(self.lastresponse)
 

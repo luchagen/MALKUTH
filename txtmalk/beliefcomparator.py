@@ -7,7 +7,7 @@ Created on Sun Jan 22 23:02:44 2023
 
 from sentence_transformers import SentenceTransformer
 from scipy.spatial.distance import cosine
-import utils
+import txtmalk.utils as utils
 
 
 class BeliefComparator:

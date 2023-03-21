@@ -8,8 +8,8 @@ import discord
 from discord.ext import commands
 
 import parameters
-import imagemalk.imagemalkcog
-import txtmalk.malkuthcog
+import imagemalk.imagemalkcog as imagemalkcog
+import txtmalk.malkuthcog as malkuthcog
 
 
 
@@ -27,8 +27,8 @@ bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
-    await bot.add_cog(imagemalk.imagemalkcog.imgmalkcog(bot))
-    await bot.add_cog(txtmalk.malkuthcog.malkcog(bot,parameters.youtube_api_key))
+    await bot.add_cog(imagemalkcog.imgmalkcog(bot))
+    await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     
 @bot.event    
 async def on_message(message):

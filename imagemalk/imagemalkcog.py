@@ -4,10 +4,10 @@ Created on Mon Mar 20 12:36:50 2023
 
 @author: suric
 """
-import MagickEditor
+import imagemalk.MagickEditor as MagickEditor
 from discord.ext import commands
 import discord
-import attachmentutils
+import imagemalk.attachmentutils as attachmentutils
 
 class imgmalkcog(commands.Cog):
     def __init__(self,bot):

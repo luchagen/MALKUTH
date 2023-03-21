@@ -5,12 +5,12 @@ Created on Sat Jan 21 18:26:28 2023
 @author: suric
 """
 import sqlite3 as sl
-import beliefcomparator
-import belief
-import sentencegenerator
-import keywordsfinder
+import txtmalk.beliefcomparator as beliefcomparator
+import txtmalk.belief as belief
+import txtmalk.sentencegeneratorapi as sentencegenerator
+import txtmalk.keywordsfinder as keywordsfinder
 import json 
-import utils
+import txtmalk.utils as utils
 
 class malkuth:
     MEMORY =  sl.connect('MEMORY.db', check_same_thread=False)
@@ -73,10 +73,10 @@ class malkuth:
                 tobeaddedbeliefs.append(beliefs[i][0])
         tobeaddedbeliefs= list(set(tobeaddedbeliefs))
         for i in range(min(len(tobeaddedbeliefs),4)):
-                memoryprompt+=  " \n" + tobeaddedbeliefs[i]
+                memoryprompt+= tobeaddedbeliefs[i]
         
 
-        if memoryprompt ==' \nMalkuth pense ": ':
+        if memoryprompt ==' \nMalkuth pense : "':
             memoryprompt=""
         else:
             memoryprompt+='"'
@@ -133,7 +133,7 @@ class malkuth:
             self.MEMORY.executemany(qry,pointers)
             self.MEMORY.commit()
             
-        return chosenresponse,chosensentence[1]
+        return chosenresponse,chosensentence[1],self.last_activated
     
     def freeprompt(self,prompt):
         return self.scentgen.free_text_gen(prompt)
