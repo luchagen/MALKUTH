@@ -9,10 +9,14 @@ import txtmalk.malkuth as malkuth
 import asyncio
 import http.client
 import json 
+import traceback
+
+from threading import Semaphore
 
 class malkcog(commands.Cog):
     lastresponse=None
     lastactivated=None
+    sem=Semaphore(1)
     
     def __init__(self,bot,api_key):
         self.bot=bot
@@ -20,8 +24,9 @@ class malkcog(commands.Cog):
 
     def initialize_lm(self):
         self.babamalk= malkuth.malkuth(3,100,0.9,3,20,True)
-
+        
     def babamalkreply(self,message):
+        self.sem.acquire()
         try:
             if message.content[:7]== '@MALKUTH':
                 reply=self.babamalk.generate_response(message.content[8:],message.author.name)
@@ -32,10 +37,14 @@ class malkcog(commands.Cog):
                 
             if reply[-4:] == '</s>':
                 reply =reply[:-4]
+            self.sem.release()
             return reply
         except AttributeError:
-            return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0)
-
+            self.sem.release()
+            return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0,"no")
+        except:
+            traceback.print_exc()
+            
     def babamalkfreeprompt(self,prompt):
         try:
             return self.babamalk.freeprompt(prompt)

@@ -12,7 +12,7 @@ from petals import DistributedBloomForCausalLM
 # from transformers import generation_stopping_criteria
 from typing import Iterable, List
 from petals.utils import generation_constraints 
-from petals.routing import sequence_manager
+from petals.client.routing import sequence_manager
 import warnings
 
 

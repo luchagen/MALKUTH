@@ -65,10 +65,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
             # return no banned tokens if we haven't generated no_repeat_ngram_size tokens yet
             return [[] for _ in range(num_hypos)]
 
-        generated_ngrams = [self.usedngrams for _ in range(num_hypos)]
-
         banned_tokens = [
-            self._get_generated_ngrams(generated_ngrams[hypo_idx], prev_input_ids[hypo_idx], ngram_size, cur_len)
+            self._get_generated_ngrams(self.usedngrams, prev_input_ids[hypo_idx], ngram_size, cur_len)
             for hypo_idx in range(num_hypos)
         ]
         return banned_tokens
@@ -77,8 +75,8 @@ class NoRepeatNGramWMemLogitsProcessor(logits_process.LogitsProcessor):
 
     
 class SentenceGenerator():
-    tokenizer = AutoTokenizer.from_pretrained("emil2000/dialogpt-for-french-language",cache_dir="./models")
-    model = AutoModelForCausalLM.from_pretrained("emil2000/dialogpt-for-french-language",cache_dir="./models")
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
+    model = AutoModelForCausalLM.from_pretrained("bigscience/bloom-1b7",cache_dir="./models")
     #proposed values (for small LMs)
     sentencesperquery=10
     sequencelength=25
@@ -125,17 +123,18 @@ class SentenceGenerator():
         self.stopcriteria = stopping_criteria.StoppingCriteriaList()
         self.stopcriteria.append(StopWordCriteria(self.stoptokens))
         
-    def generate_sentences(self,context,prompt: str,usedtrigrams: dict):
+    def generate_sentences(self,context,prompt: str,usedtrigrams: dict,usedquadrigrams:dict):
             inpts = self.tokenizer(prompt, return_tensors="pt")["input_ids"]
             inputs=torch.cat((context, inpts), 1) #add inpts to context to run inference
             sentences=[]
             
             logitsprocessors = logits_process.LogitsProcessorList()
             logitsprocessors.append(NoRepeatNGramWMemLogitsProcessor(3,usedtrigrams))
+            logitsprocessors.append(NoRepeatNGramWMemLogitsProcessor(4,usedquadrigrams))
             
             tokenout = self.model.generate(inputs, max_length=len(inputs[0])+self.sequencelength,do_sample=True,top_p=self.topp,num_return_sequences =self.sentencesperquery,temperature=0.7,no_repeat_ngram_size=3,logits_processor=logitsprocessors,stopping_criteria=self.stopcriteria,eos_token_id=2)
             
-            for i in range(self.sentencesperquery):
+            for i in range(len(tokenout)):
                 sentence=self.tokenizer.decode(tokenout[i][len(context[0]):])
                 sentenceb=prompt
                 j=len(prompt)
@@ -164,8 +163,6 @@ class SentenceGenerator():
     #for generation to take immediate past sentences into account without regenerating the tokens
     def inference_session(self,prompt: str,last_question : str,last_response: str):
         #generate tokens for interaction n-1
-        
-        
         self.context.append(self.tokenizer(last_question+ " \n" +last_response+" \n", return_tensors="pt")["input_ids"])
         if len(self.context)>self.shorttermmemory_size:
             self.context.pop(0)
@@ -174,6 +171,11 @@ class SentenceGenerator():
         self.trigramlists.append(newtrigrams)
         if len(self.trigramlists) > self.shorttermmemory_size :
             self.trigramlists.pop(0)
+        
+        newquadrigrams=self._get_ngrams(4, self.tokenizer(last_question, return_tensors="pt")["input_ids"][0])
+        self.quadrigramlists.append(newquadrigrams)
+        if len(self.quadrigramlists) > self.shorttermmemory_size :
+            self.quadrigramlists.pop(0)
             
         #hypercontext + context  
         hyperprompt = torch.cat((self.context[0],self.metacontext),1)
@@ -183,9 +185,12 @@ class SentenceGenerator():
         usedtrigrams={}
         for trigrams in self.trigramlists:
             usedtrigrams.update(trigrams)
-        gscent = self.generate_sentences(hyperprompt,prompt,usedtrigrams)
         
+        usedquadrigrams={}
+        for quadrigrams in self.quadrigramlists:
+            usedquadrigrams.update(quadrigrams)
         
+        gscent = self.generate_sentences(hyperprompt,prompt,usedtrigrams,usedquadrigrams)
             
             
         return gscent
