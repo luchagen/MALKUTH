@@ -209,3 +209,6 @@ class SentenceGenerator():
                 prev_ngram_tuple = tuple(ngram[:-1])
                 generated_ngram[prev_ngram_tuple] = generated_ngram.get(prev_ngram_tuple, []) + [ngram[-1]]
         return generated_ngram
+
+    def wipeshorttermmemory(self):
+        self.context = []

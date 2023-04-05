@@ -41,7 +41,7 @@ class BeliefComparator:
                 for i in range(len(testpred)):
                     activations=[]
                     for j in range(nbr_memories):
-                        activations+=utils.getactivations(mempred[j],testpred[i],j)
+                        activations+=utils.getactivations(mempred[j],testpred[i],j,beliefs[j])
                     nbract=len(activations)
                     for activation in activations:
                         predicatesim[i]+=activation[0]*beliefs[activation[1]]/(nbract*10)

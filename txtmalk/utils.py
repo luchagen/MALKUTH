@@ -46,7 +46,7 @@ def get_cosine(vec1, vec2):
     else:
         return float(numerator) / denominator
 
-def getactivations(predicatesmem,predicatetest,i):
+def getactivations(predicatesmem,predicatetest,i,beliefstrength):
     activations=[]
     for pred in predicatesmem:
         activation=0.0
@@ -72,6 +72,7 @@ def getactivations(predicatesmem,predicatetest,i):
         activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["obj_"]))/2
         activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["how_"]))/2
         activation+=get_cosine(lemmascount(pred["where_"]),lemmascount(predicatetest["why_"]))/2
+        activation=beliefstrength*activation
         activations.append((activation,i))
     if activations==[]:
         activations.append((0,i))

@@ -33,40 +33,10 @@ class malkuth:
         #parse predicates from prompt message 
         messagepred= self.kwfinder.predicates(message)
         
+        [datapointers,memorypred,beliefs,activated]=self.fetch_memories(messagekw,messagepred)
         
-        #get pointers to memories(beliefs) linked to keywords
-        datapointers=[]
-        for kw in messagekw:
-            dtpointer=self.MEMORY.execute("SELECT (pointer) FROM KEYWORDSPOINTERS WHERE keyword == ?",kw).fetchall()
-            datapointers+=dtpointer
-        datapointers=list(set(datapointers))
-        #get predicates and beliefs linked to memories
-        memorypred= []
-        beliefs=[]
-            
-        for ptr in datapointers:
-            blf=self.MEMORY.execute("SELECT * FROM BELIEFS WHERE id==?",ptr).fetchall()
-            beliefs.append((blf[0][1], blf[0][2]))
-            memorysentencestr=self.MEMORY.execute("SELECT predicate FROM PREDICATES WHERE id==?",ptr).fetchall()
-            memorysentencepred=[]
-            for pred in memorysentencestr:
-                memorysentencepred+=json.loads(pred[0])
-            memorypred.append(memorysentencepred)
-        
-        #find most activated memories
-        activated = [0 for i in range(len(beliefs))]
         memoryprompt=' \nMalkuth pense : "'
-        for pred in messagepred:
-            activations=[]
-            for i in range(len(memorypred)):
-                activations+= utils.getactivations(memorypred[i], pred,i)
-            maxactivation=0
-            if len(activations)!=0:    
-                maxactivation=max(activations)[0]-2.0
-            for i in range(len(activations)):
-                if activations[i][0]>=2.0 and activations[i][0]-2.0 >= maxactivation-0.5:
-                    activated[activations[i][1]]=1
-        
+       
         tobeaddedbeliefs=[]
         for i in range(len(beliefs)):
             if activated[i]==1:
@@ -152,3 +122,59 @@ class malkuth:
         qry="INSERT INTO KEYWORDSPOINTERS (pointer,keyword) values(?,?)"
         self.MEMORY.executemany(qry,pointers)
         self.MEMORY.commit()
+        
+    def retrospect(self,prompt: str, answer: str,sentiment: float):
+        messagekw=self.kwfinder.keywords(prompt + answer)
+        #parse predicates
+        messagepred= self.kwfinder.predicates(prompt)+self.kwfinder.predicates(answer)
+        [datapointers,memorypred,beliefs,activated]=self.fetch_memories(messagekw,messagepred)
+        relevantpointers=[]
+        for i in range(len(datapointers)):
+            if activated[i]==1:
+                relevantpointers.append(datapointers[i])
+        relevantpointers= list(set(relevantpointers))
+        for i in range(min(len(relevantpointers),4)):
+                strength=self.MEMORY.execute("SELECT strength FROM BELIEFS WHERE id == ?",relevantpointers[i] ).fetchall()
+                self.MEMORY.execute("UPDATE BELIEFS SET strength=? WHERE id=?",(strength[0][0]+sentiment,relevantpointers[i][0]))
+        self.MEMORY.commit()
+        
+    def fetch_memories(self,messagekw,messagepred):
+        #get pointers to memories(beliefs) linked to keywords
+        datapointers=[]
+        for kw in messagekw:
+            dtpointer=self.MEMORY.execute("SELECT (pointer) FROM KEYWORDSPOINTERS WHERE keyword == ?",kw).fetchall()
+            datapointers+=dtpointer
+        datapointers=list(set(datapointers))
+        #get predicates and beliefs linked to memories
+        memorypred= []
+        beliefs=[]
+            
+        for ptr in datapointers:
+            blf=self.MEMORY.execute("SELECT * FROM BELIEFS WHERE id==?",ptr).fetchall()
+            beliefs.append((blf[0][1], blf[0][2]))
+            memorysentencestr=self.MEMORY.execute("SELECT predicate FROM PREDICATES WHERE id==?",ptr).fetchall()
+            memorysentencepred=[]
+            for pred in memorysentencestr:
+                memorysentencepred+=json.loads(pred[0])
+            memorypred.append(memorysentencepred)
+            
+        #get most activated memories
+        activated = [0 for i in range(len(beliefs))]
+        for pred in messagepred:
+            activations=[]
+            for i in range(len(memorypred)):
+                activations+= utils.getactivations(memorypred[i], pred,i,beliefs[i][1])
+            maxactivation=0
+            if len(activations)!=0:    
+                maxactivation=max(activations)[0]-2.0
+            for i in range(len(activations)):
+                if activations[i][0]>=2.0 and activations[i][0]-2.0 >= maxactivation-0.5:
+                    activated[activations[i][1]]=1
+                    
+                    
+        return([datapointers,memorypred,beliefs,activated])
+        
+    def wipeshorttermmemory(self):
+        self.scentgen.wipeshorttermmemory()
+        self.lastquestion =""
+        self.lastresponse =""

@@ -86,3 +86,5 @@ class SentenceGenerator():
             )
         return response["choices"][0]["text"]
     
+    def wipeshorttermmemory(self):
+        self.context = []
