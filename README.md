@@ -1,5 +1,5 @@
 <h2>MALKUTH</h2>
-discord bot made for the Studiez server. Malkuth is designed with the aim of saving and changing with a server's history (for the moment message interactions with the bot, posted images,...).
+discord bot made for the Studiez server. Malkuth is designed with the aim of saving and changing with a server or server cluster's history (for the moment message interactions with the bot, posted images,...).
 As such, Malkuth should be self-hosted.
 
 
