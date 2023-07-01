@@ -112,3 +112,26 @@ def droplibrary(name: str):
         PICMEMORY.rollback()
         return (["No library by this name. If you entered a channel/did not enter anything, check if logging was activated, or change the channel name to something different from what already exists (NOT case sensitive)"])
     PICMEMORY.commit()
+
+def getMessageEmbeds(message):
+    """Search each embed type object in a message to see if there is a relevant image url"""
+    embeds = []
+    for embedcontainer in message.embeds:
+                imgurl=""
+                if embedcontainer.url !=None:
+                        imgurl=embedcontainer.url
+                if embedcontainer.thumbnail !=None and embedcontainer.thumbnail.proxy_url!=None:
+                        imgurl=embedcontainer.thumbnail.proxy_url
+                if embedcontainer.image != None and embedcontainer.image.proxy_url!=None :
+                        imgurl=embedcontainer.image.proxy_url
+                if embedcontainer.image != None and embedcontainer.image.url!=None :
+                        imgurl=embedcontainer.image.url
+                if embedcontainer.thumbnail !=None and embedcontainer.thumbnail.url!=None :
+                        imgurl=embedcontainer.thumbnail.url
+                embeds.append(imgurl)
+
+def getMessageAttachments(message):
+    """returns all message attachments as urls"""
+    attachments =[]
+    for attachment in message.attachments :
+            attachments.append(attachment.url)
