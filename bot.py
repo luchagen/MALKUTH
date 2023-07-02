@@ -6,10 +6,16 @@ Created on Thu Jan 26 22:11:22 2023
 """
 import discord
 from discord.ext import commands
-
+from discord import PCMVolumeTransformer
+from discord.utils import get
+from pydub import AudioSegment
+from pydub.playback import play
+import tempfile
 import parameters
 import imagemalk.imagemalkcog as imagemalkcog
 import txtmalk.malkuthcog as malkuthcog
+import syncmalk.syncmalkcog as syncmalkcog
+import asyncio
 
 
 
@@ -19,9 +25,15 @@ description = '''Malkuth has some plans to dominate the world.'''
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
+intents.voice_states = True
 bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 
+# Initialize voice client variable
+voice_client = None
 
+# Define user ID to audio file path dictionary
+user_audio_dict = {
+}
 
 @bot.event
 async def on_ready():
@@ -29,6 +41,7 @@ async def on_ready():
     print('------')
     await bot.add_cog(imagemalkcog.imgmalkcog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
+    await bot.add_cog(syncmalkcog.syncog(bot))
     
 @bot.event    
 async def on_message(message):
