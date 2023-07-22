@@ -8,7 +8,7 @@ import re
 import sqlite3 as sl
 from discord.ext import commands
 from discord import Webhook
-from discord import MessageType
+from discord import Thread
 import parameters
 from datetime import datetime
 from syncmalk import studiezsync
@@ -28,7 +28,7 @@ class syncog(commands.Cog):
             webhook_id  INTEGER,
             webhook_token  TEXT)""")
             self.MEMORYSYNC.commit()
-        self.emojipattern=re.compile(":[A-Za-z0-9]+:")
+        self.emojipattern=re.compile(";[A-Za-z0-9]+;")
     
     def get_emoj(self,emojimatch: re.Match):
         """
@@ -36,7 +36,7 @@ class syncog(commands.Cog):
         """
         emojiname=emojimatch.group(0)
         for emoj in self.bot.emojis:
-            if emoj.name== emojiname.replace(':',''):
+            if emoj.name== emojiname.replace(';',''):
                 return '<:'+emoj.name+':'+str(emoj.id)+'>'
         return emojiname
     
@@ -62,6 +62,10 @@ class syncog(commands.Cog):
         Used to get a webhook's credential from memory for a given channel, or create a new webhook and then insert it into the sqlite db used for that purpose.
         This was found to be more reliable than getting the credentials back from discord api each time.
         """
+        thread=None
+        if isinstance(channel,Thread):
+            thread=channel
+            channel = channel.parent #if thread or forum post, we get the parent channel
         webhooks=self.MEMORYSYNC.execute("SELECT webhook_id, webhook_token FROM channels WHERE channel_id = (?)",(channel.id,)).fetchall() 
         if len(webhooks)==0:
                 mywebhook=await channel.create_webhook(name="malk"+channel.name) #name="malk"+channel.name,avatar=self.bot.user.avatar,reason="sync"
@@ -91,6 +95,10 @@ class syncog(commands.Cog):
         """
         Used to push a message to a discord channel's webhook, create back if it is not reachable/doesn't exist anymore.
         """
+        thread=None
+        if isinstance(channel,Thread):
+            thread=channel
+            channel = channel.parent #if thread or forum post, we get the parent channel
         avatar_url=user.avatar.url
         try:
             username = user.nick or user.name
@@ -99,14 +107,20 @@ class syncog(commands.Cog):
         async with aiohttp.ClientSession() as client:
             try:
                 webhook = Webhook.partial(webhookid, webhooktoken, session=client,bot_token=(parameters.discord_api_key))
-                posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True)
+                if not thread:
+                    posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True)
+                else : # if the target is a thread / forum post , specify it in the send request
+                    posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True,thread=thread)
             except: #we assume sending the message failed because the old webhook was faulty / did not exist anymore
                 mywebhook=await channel.create_webhook(name="malk"+channel.name) #name="malk"+channel.name,avatar=self.bot.user.avatar,reason="sync"
                 self.UpdateDBForWebhook(mywebhook.id,mywebhook.token,channel.id)
                 webhookid=mywebhook.id
                 webhooktoken=mywebhook.token
                 webhook = Webhook.partial(webhookid, webhooktoken, session=client,bot_token=(parameters.discord_api_key))
-                posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True)
+                if not thread:
+                    posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True)
+                else : # if the target is a thread / forum post , specify it in the send request
+                    posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True,thread=thread)
             return posted_message
 
     @commands.Cog.listener()
@@ -132,8 +146,11 @@ class syncog(commands.Cog):
                 syncmessage= message.clean_content
             
             attachments=attachmentutils.getMessageAttachments(message)
+            embeds=attachmentutils.getMessageEmbeds(message)
             if attachments != None:
                 syncmessage+= " \n " + str(attachments)
+            if embeds != None:
+                syncmessage+= " \n " + str(embeds)
             
             (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
             
