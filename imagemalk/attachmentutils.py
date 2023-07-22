@@ -129,9 +129,11 @@ def getMessageEmbeds(message):
                 if embedcontainer.thumbnail !=None and embedcontainer.thumbnail.url!=None :
                         imgurl=embedcontainer.thumbnail.url
                 embeds.append(imgurl)
+    return embeds
 
 def getMessageAttachments(message):
     """returns all message attachments as urls"""
     attachments =[]
     for attachment in message.attachments :
             attachments.append(attachment.url)
+    return attachments

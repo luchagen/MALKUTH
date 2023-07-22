@@ -149,8 +149,8 @@ class syncog(commands.Cog):
             embeds=attachmentutils.getMessageEmbeds(message)
             if attachments :
                 syncmessage+= " \n " + str(attachments)
-            if embeds :
-                syncmessage+= " \n " + str(embeds)
+            #elif embeds :
+            #    syncmessage+= " \n " + str(embeds)
             
             (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
             
