@@ -147,20 +147,21 @@ class syncog(commands.Cog):
             
             attachments=attachmentutils.getMessageAttachments(message)
             embeds=attachmentutils.getMessageEmbeds(message)
-            if attachments != None:
+            if attachments :
                 syncmessage+= " \n " + str(attachments)
-            if embeds != None:
+            if embeds :
                 syncmessage+= " \n " + str(embeds)
             
             (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
             
             user = message.author
 
-            if replymessage !="":
+            if replymessage:
                 await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
-            posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
-            posted_message_id=str(posted_message.id)
-            await self.post_to_message_dict(str(message.id),str(posted_message_id))
+            if syncmessage:
+                posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
+                posted_message_id=str(posted_message.id)
+                await self.post_to_message_dict(str(message.id),str(posted_message_id))
 
         if self.emojipattern.search(message.content) : #replace emojis in message if it contains ;emojiname; words
             if len(message.attachments)!=0: return
