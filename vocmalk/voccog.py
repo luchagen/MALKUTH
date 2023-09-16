@@ -34,6 +34,7 @@ class voccog(commands.Cog):
                 audio_file = AudioSegment.from_file(audio_file_path, format=audio_file_path.split('.')[-1])
                 audio_file.export("audio.wav", format="wav")
                 audio_source = discord.FFmpegPCMAudio("audio.wav")
+                audio_source = discord.PCMVolumeTransformer(audio_source,volume=0.2)
                 await asyncio.sleep(1)
                 voice_client.play(audio_source, after=lambda e: print('Player error: %s' % e) if e else None)
                 while voice_client.is_playing():
@@ -46,7 +47,7 @@ class voccog(commands.Cog):
     async def on_voice_state_update(self, member, before, after):
         global voice_client
         
-        if after.channel :
+        if after.channel and str(member.id) in self.user_audio_dict and before.channel!=after.channel :
             print(str(after.channel))
             # Check if member is the bot itself
             if member == self.bot.user:
