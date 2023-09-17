@@ -6,6 +6,7 @@ Created on Tue Jun 13 22:06:12 2023
 """
 import re
 import sqlite3 as sl
+from syncmalk import studiezsync
 from discord.ext import commands
 from discord import Webhook
 from discord import Thread
@@ -19,6 +20,8 @@ class syncog(commands.Cog):
     syncchannels=parameters.sync_channels
     def __init__(self,bot):
         self.bot=bot
+
+        #initialize channels table (for webhooks)
         self.MEMORYSYNC =  sl.connect('serversync.db', check_same_thread=False)
         testexists=self.MEMORYSYNC.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='channels'").fetchall()
         if len(testexists)<1:
@@ -28,6 +31,19 @@ class syncog(commands.Cog):
             webhook_id  INTEGER,
             webhook_token  TEXT)""")
             self.MEMORYSYNC.commit()
+        
+        #initialize mirrors table (for synchronization)
+        testexists=self.MEMORYSYNC.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mirrors'").fetchall()
+        if len(testexists)<1:
+            self.MEMORYSYNC.execute("""CREATE TABLE mirrors (
+            mirror_id  INTEGER  PRIMARY KEY,  
+            channel_id  INTEGER,
+            mirror_channel_id  INTEGER)""")
+            
+            self.MEMORYSYNC.executemany("""INSERT INTO mirrors(channel_id,mirror_channel_id) 
+            values (?,?) """, [item for item in studiezsync.completeserverdict.items()])
+            self.MEMORYSYNC.commit()
+
         self.emojipattern=re.compile(";[A-Za-z0-9]+;")
     
     def get_emoj(self,emojimatch: re.Match):
@@ -39,6 +55,16 @@ class syncog(commands.Cog):
             if emoj.name== emojiname.replace(';',''):
                 return '<:'+emoj.name+':'+str(emoj.id)+'>'
         return emojiname
+    
+    def get_listened_channels(self):
+        qresults=self.MEMORYSYNC.execute("SELECT channel_id FROM mirrors").fetchall()
+        results=[result[0] for result in qresults]
+        return results
+    
+    def get_channel_mirrors(self,channel_id):
+        qresults=self.MEMORYSYNC.execute("SELECT mirror_channel_id FROM mirrors WHERE channel_id=?",[channel_id]).fetchall()
+        results = [result[0] for result in qresults]
+        return results
     
     #def replaceEmojisInMessage(self,message:str):
         #replacing= True
@@ -129,17 +155,14 @@ class syncog(commands.Cog):
         if message.webhook_id!=None: #we do not want to modify or sync messages that were already sent by a webhook
             return
 
-        if str(message.channel.id) in studiezsync.completeserverdict.keys():
+        print(message.channel.id in self.get_listened_channels())
+        if message.channel.id in self.get_listened_channels():
+            
             """If the message is sent in a channel meant to be synced, publish that message in the linked mirror channel"""
-            mirror_channel = self.bot.get_channel(studiezsync.completeserverdict[str(message.channel.id)])
-            replymessage=""
-
-            if message.reference != None: #message is a reply, add reply elements
-                to_respond= await self.get_message_instanciated(mirror_channel,str(message.reference.message_id))
-                replymessage += to_respond.jump_url + " \n"
-                replymessage += "<@"+str(to_respond.author.id)+">"
+            mirror_channels = self.get_channel_mirrors(message.channel.id)
             
             
+            #edit the message content
             if self.emojipattern.search(message.clean_content): #replace emojis in message
                 syncmessage = self.emojipattern.sub(self.get_emoj,message.clean_content)
             else :
@@ -152,17 +175,27 @@ class syncog(commands.Cog):
             #elif embeds :
             #    syncmessage+= " \n " + str(embeds)
             
-            (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
             
-            user = message.author
+            for mirror_channel_id in mirror_channels:
+                mirror_channel = self.bot.get_channel(mirror_channel_id)
+                replymessage=""
 
-            if replymessage:
-                await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
-            if syncmessage:
-                posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
-                posted_message_id=str(posted_message.id)
-                await self.post_to_message_dict(str(message.id),str(posted_message_id))
+                if message.reference != None: #message is a reply, add reply elements
+                    to_respond= await self.get_message_instanciated(mirror_channel,str(message.reference.message_id))
+                    replymessage += to_respond.jump_url + " \n"
+                    replymessage += "<@"+str(to_respond.author.id)+">"
+                (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
+            
+                user = message.author
 
+                if replymessage:
+                    await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
+                if syncmessage:
+                    posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
+                    posted_message_id=str(posted_message.id)
+                    await self.post_to_message_dict(str(message.id),str(posted_message_id))
+
+        
         if self.emojipattern.search(message.content) : #replace emojis in message if it contains ;emojiname; words
             if len(message.attachments)!=0: return
                 
@@ -183,7 +216,11 @@ class syncog(commands.Cog):
             if replymessage !="":
                 await self.PostMessageToWebHook(message.channel,webhookid, webhooktoken, replymessage, user)
             newmessage=await self.PostMessageToWebHook(message.channel,webhookid, webhooktoken, syncmessage, user)
-            await self.modify_message_dict(str(message.id), str(newmessage.id))
+            
+            #if the message has a reference in the message reference dictionary, update it.
+            if message.channel.id in self.get_listened_channels():
+                await self.modify_message_dict(str(message.id), str(newmessage.id))
+            
             await message.delete()
 
     @commands.command(description="completely reload one channels library. Use as a last resort, some images might not register.")
