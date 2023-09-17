@@ -223,6 +223,37 @@ class syncog(commands.Cog):
             
             await message.delete()
 
+    @commands.command(description="Create a mirror channel, every (non webhook) message from input channel id will be mirrored to this channel")
+    async def synchronize_mirror(self,ctx,channel_id):
+        try:
+            self.MEMORYSYNC.execute("""INSERT INTO mirrors(channel_id,mirror_channel_id) VALUES (?,?)""", [channel_id,ctx.channel.id])
+        except Exception as e:
+            print(e)
+            await ctx.channel.send(e)
+        else:
+            self.MEMORYSYNC.commit()
+            original_channel = self.bot.get_channel(int(channel_id))
+            await original_channel.send("channel "+str(ctx.channel.id)+" from guild "+
+                                        ctx.guild.name+" will now mirror messages from "+str(channel_id))
+
+    @commands.command(description="Delete a mirror synchronizing from this channel")
+    async def delete_mirror(self,ctx,channel_id):
+        try:
+            self.MEMORYSYNC.execute("""DELETE FROM mirrors WHERE channel_id=? and mirror_channel_id=?""",[ctx.channel.id,channel_id])
+        except Exception as e:
+            print(e)
+            await ctx.channel.send(e)
+        else:
+            self.MEMORYSYNC.commit()
+            mirror_channel = self.bot.get_channel(int(channel_id))
+            await mirror_channel.send("This channel ("+mirror_channel.name +':'+str(mirror_channel.id)+
+                                      ") will stop mirroring messages from "+ctx.channel.name)
+            await ctx.channel.send("Stopped " + mirror_channel.name +" ("+ 
+                                   str(mirror_channel.id) + 
+                                   ") from mirroring messages from this channel ("+
+                                   ctx.channel.name+ ':' +str(ctx.channel.id) +")" )
+
+
     @commands.command(description="completely reload one channels library. Use as a last resort, some images might not register.")
     async def reposteverything(self,ctx , areyousureaboutwhatyouredoing:str=""):
         if areyousureaboutwhatyouredoing=='I am not sure about what I am doing' :
