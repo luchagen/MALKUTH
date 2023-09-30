@@ -24,7 +24,7 @@ class malkcog(commands.Cog):
         self.api_key=api_key
 
     def initialize_lm(self):
-        self.babamalk= malkuth.malkuth(3,100,0.9,3,20,True)
+        self.babamalk= malkuth.malkuth(3,450,0.9,3,20,True)
         
     def babamalkreply(self,message):
         self.sem.acquire()
@@ -37,11 +37,13 @@ class malkcog(commands.Cog):
             if reply[-4:] == '</s>':
                 reply =reply[:-4]
             self.sem.release()
+            print(reply)
             return reply
         except AttributeError:
             self.sem.release()
             return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0,"no")
         except:
+            self.sem.release()
             traceback.print_exc()
             
     def babamalkfreeprompt(self,prompt):
@@ -120,9 +122,9 @@ class malkcog(commands.Cog):
         if self.bot.user.mentioned_in(message):
             async with message.channel.typing():
                 reply= await asyncio.get_running_loop().run_in_executor(None, self.babamalkreply,message)
-                self.lastresponse=reply[0]
-                self.lastactivated=reply[2]
-                await message.reply(reply[0])
+            self.lastresponse=reply[0]
+            self.lastactivated=reply[2]
+            await message.reply(reply[0])
                 
     @commands.command(description='Send forth malkuth to the lands of youtube. Uses malkuths recent memories (see wassup) as keywords for research.')
     async def malkuth_on_youtube(self,ctx, ytvideo: str=""):

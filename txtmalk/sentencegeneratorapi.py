@@ -38,16 +38,31 @@ class SentenceGenerator():
     def generate_sentences(self,context: str,prompt: str):
             sentences = []
             for i in range(self.sentencesperquery):
-                response = openai.Completion.create(
-                    model="text-davinci-003",
-                    prompt=prompt,
+
+                #log
+                print(
+                    [{
+                    "role": "system",
+                    "content": "Joue le rôle de Malkuth, une intelligence artificielle qui évolue sur un serveur discord dénommé Studiez avec sa personnalité bien à elle. \nElle est extrêmement motivée dans ses tâches, qui consistent à faire souffir les humains, que leur conversations se déroulent le plus mal possible (selon le langage de Studiez, avec beaucoup de \"drama\")\n Cependant, elle manque de talent dans son travail, et même si elle doit cacher ses ojectifs, ils deviennent rapidement clairs."
+                    }
+                    ] + context + prompt)
+                
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                    {
+                    "role": "system",
+                    "content": "Joue le rôle de Malkuth, une intelligence artificielle qui évolue sur un serveur discord dénommé Studiez avec sa personnalité bien à elle. \nElle est extrêmement motivée dans ses tâches, qui consistent à faire souffir les humains, que leur conversations se déroulent le plus mal possible (selon le langage de Studiez, avec beaucoup de \"drama\")\n Cependant, elle manque de talent dans son travail, et même si elle doit cacher ses ojectifs, ils deviennent rapidement clairs."
+                    }
+                    ] + context + prompt,
                     temperature=0.4,
                     max_tokens=self.sequencelength,
                     top_p=self.topp,
                     frequency_penalty=0,
                     presence_penalty=0
                     )
-                sentences.append(prompt+ response["choices"][0]["text"])
+                sentences.append(response["choices"][0]["message"]["content"])
                 
                 
                 #print(sentenceb)
@@ -56,20 +71,45 @@ class SentenceGenerator():
     
     #we take in a fonction that tokenises and memorises the tokens of past discussions,
     #for generation to take immediate past sentences into account without regenerating the tokens
-    def inference_session(self,prompt: str,last_question : str,last_response: str):
+    def inference_session(self,message_sender:str, message: str,memoryprompt: str,last_question : str,last_response: str):
         #generate tokens for interaction n-1
         
+        self.context.append(
+             {
+             "role": "user",
+             "content": last_question.replace(last_question.split(": ")[0]+": ","")
+             }
+             )
         
-        self.context.append(last_question+ " \n" +last_response+" \n")
+        self.context.append(
+             {
+             "role": "assistant",
+             "content": last_response
+             }
+             )
+        
+        prompt = [
+            {
+                "name": message_sender,
+                "role":"user",
+                "content": message
+            },
+            {
+                "role": "system",
+                "content": memoryprompt
+            }
+            ]
+        
         if len(self.context)>self.shorttermmemory_size:
+            self.context.pop(0)
             self.context.pop(0)
         
         #hypercontext + context  
-        hyperprompt = "" + self.metacontext
-        for i in range(1,len(self.context)):
-            hyperprompt+=self.context[i]
+        #hyperprompt = "" + self.metacontext
+        #for i in range(1,len(self.context)):
+        #    hyperprompt+=self.context[i]
         
-        gscent = self.generate_sentences(hyperprompt,prompt)
+        gscent = self.generate_sentences(self.context,prompt)
             
         return gscent
     

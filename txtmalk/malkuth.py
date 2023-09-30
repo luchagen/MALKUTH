@@ -52,8 +52,7 @@ class malkuth:
             memoryprompt+='"'
         self.last_activated=memoryprompt
         #generate responses to prompt
-        prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
-        generatedsentences=self.scentgen.inference_session(prompt,self.lastquestion,self.lastresponse)
+        generatedsentences=self.scentgen.inference_session(messagesender,message,memoryprompt,self.lastquestion,self.lastresponse)
         
         
         testsentences=[]
@@ -79,12 +78,12 @@ class malkuth:
             #for each generated sentence, the belief comparator will receive (the sentence, the list of beliefs to test the sentence against)
             testsentences.append((sen,beliefs))
         chosensentence=self.beefcomp.mostbelievable(testsentences)
-        chosenresponse=chosensentence[0][len(prompt):]
+        chosenresponse=chosensentence[0]
         
         self.lastquestion=""
         self.lastresponse=""
         self.lastquestion+=messagesender+": "+message
-        self.lastresponse+=chosensentence[0][len(prompt):] #save the current Q/A for preserving its tensors into the sentence generator context
+        self.lastresponse+=chosensentence[0] #save the current Q/A for preserving its tensors into the sentence generator context
         
         #save to MEMORY database
         if self.writememory == True:
