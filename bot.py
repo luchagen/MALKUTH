@@ -15,6 +15,7 @@ import parameters
 import imagemalk.imagemalkcog as imagemalkcog
 import txtmalk.malkuthcog as malkuthcog
 import syncmalk.syncmalkcog as syncmalkcog
+import vocmalk.voccog as vocmalkcog
 import asyncio
 
 
@@ -22,18 +23,12 @@ import asyncio
 
 description = '''Malkuth has some plans to dominate the world.'''
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
 bot = commands.Bot(command_prefix='?', description=description, intents=intents)
 
-# Initialize voice client variable
-voice_client = None
-
-# Define user ID to audio file path dictionary
-user_audio_dict = {
-}
 
 @bot.event
 async def on_ready():
@@ -42,6 +37,7 @@ async def on_ready():
     await bot.add_cog(imagemalkcog.imgmalkcog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     await bot.add_cog(syncmalkcog.syncog(bot))
+    await bot.add_cog(vocmalkcog.voccog(bot))
     
 @bot.event    
 async def on_message(message):
