@@ -183,15 +183,15 @@ class syncog(commands.Cog):
         #    syncmessage+= " \n " + str(embeds)
         return syncmessage
     
-    async def whpost_reply_tag(self,mirror_channel,message):
+    async def whpost_reply_tag(self,mirror_channel,message,webhookid,webhooktoken,user):
         replymessage=""
 
         if message.reference != None: #message is a reply, add reply elements
             to_respond= await self.get_message_instanciated(mirror_channel,str(message.reference.message_id))
             replymessage += to_respond.jump_url + " \n"
             replymessage += "<@"+str(to_respond.author.id)+">"
-        (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
-        user = message.author
+            
+        
 
         if replymessage:
             await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
@@ -215,8 +215,10 @@ class syncog(commands.Cog):
             
             for mirror_channel_id in mirror_channels:
                 mirror_channel = self.bot.get_channel(mirror_channel_id)
-                
-                await self.whpost_reply_tag(mirror_channel,message)
+                user = message.author
+                (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)
+
+                await self.whpost_reply_tag(mirror_channel,message,webhookid,webhooktoken,user)
 
                 if syncmessage:
                     posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
@@ -236,8 +238,10 @@ class syncog(commands.Cog):
             
             for mirror_channel_id in mirror_channels:
                 mirror_channel = self.bot.get_channel(mirror_channel_id)
-                
-                await self.whpost_reply_tag(mirror_channel,message)
+                user = message.author
+                (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)
+
+                await self.whpost_reply_tag(mirror_channel,message,webhookid,webhooktoken,user)
                 
                 if syncmessage:
                     posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
@@ -275,6 +279,9 @@ class syncog(commands.Cog):
 
     @commands.command(description="Create a direct forward mirror channel. messages from input channel will be deleted there and pushed to the this channel instead")
     async def synchronize_dfwmirror(self,ctx,channel_id):
+        original_channel = self.bot.get_channel(int(channel_id))
+        await original_channel.send("channel "+str(ctx.channel.id)+" from guild "+
+                                        ctx.guild.name+" will receive messages written to "+str(channel_id))
         try:
             self.MEMORYSYNC.execute("""INSERT INTO dfwmirrors(channel_id,mirror_channel_id) VALUES (?,?)""", [channel_id,ctx.channel.id])
         except Exception as e:
@@ -282,9 +289,8 @@ class syncog(commands.Cog):
             await ctx.channel.send(e)
         else:
             self.MEMORYSYNC.commit()
-            original_channel = self.bot.get_channel(int(channel_id))
-            await original_channel.send("channel "+str(ctx.channel.id)+" from guild "+
-                                        ctx.guild.name+" will receive messages written to "+str(channel_id))
+            
+            
             
     @commands.command(description="Create a mirror channel, every (non webhook) message from input channel id will be mirrored to this channel")
     async def synchronize_mirror(self,ctx,channel_id):
