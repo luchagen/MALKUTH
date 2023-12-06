@@ -44,6 +44,16 @@ class syncog(commands.Cog):
             values (?,?) """, [item for item in studiezsync.completeserverdict.items()])
             self.MEMORYSYNC.commit()
 
+        #initialize dfwmirrors table (for message forwarding)
+        testexists=self.MEMORYSYNC.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dfwmirrors'").fetchall()
+        if len(testexists)<1:
+            self.MEMORYSYNC.execute("""CREATE TABLE dfwmirrors (
+            mirror_id  INTEGER  PRIMARY KEY,  
+            channel_id  INTEGER,
+            mirror_channel_id  INTEGER)""")
+            self.MEMORYSYNC.commit()
+
+
         self.emojipattern=re.compile(";[A-Za-z0-9]+;")
     
     def get_emoj(self,emojimatch: re.Match):
@@ -61,8 +71,18 @@ class syncog(commands.Cog):
         results=[result[0] for result in qresults]
         return results
     
+    def get_listened_dfwchannels(self):
+        qresults=self.MEMORYSYNC.execute("SELECT channel_id FROM dfwmirrors").fetchall()
+        results=[result[0] for result in qresults]
+        return results
+    
     def get_channel_mirrors(self,channel_id):
         qresults=self.MEMORYSYNC.execute("SELECT mirror_channel_id FROM mirrors WHERE channel_id=?",[channel_id]).fetchall()
+        results = [result[0] for result in qresults]
+        return results
+    
+    def get_channel_dfwmirrors(self,channel_id):
+        qresults=self.MEMORYSYNC.execute("SELECT mirror_channel_id FROM dfwmirrors WHERE channel_id=?",[channel_id]).fetchall()
         results = [result[0] for result in qresults]
         return results
     
@@ -149,6 +169,33 @@ class syncog(commands.Cog):
                     posted_message=await webhook.send(message, username=username , avatar_url=avatar_url,wait=True,thread=thread)
             return posted_message
 
+    def edit_message_for_whpost(self,message):
+        if self.emojipattern.search(message.clean_content): #replace emojis in message
+            syncmessage = self.emojipattern.sub(self.get_emoj,message.clean_content)
+        else :
+            syncmessage= message.clean_content
+            
+        attachments=attachmentutils.getMessageAttachments(message)
+        embeds=attachmentutils.getMessageEmbeds(message)
+        if attachments :
+            syncmessage+= " \n " + str(attachments)
+        #elif embeds :
+        #    syncmessage+= " \n " + str(embeds)
+        return syncmessage
+    
+    async def whpost_reply_tag(self,mirror_channel,message):
+        replymessage=""
+
+        if message.reference != None: #message is a reply, add reply elements
+            to_respond= await self.get_message_instanciated(mirror_channel,str(message.reference.message_id))
+            replymessage += to_respond.jump_url + " \n"
+            replymessage += "<@"+str(to_respond.author.id)+">"
+        (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
+        user = message.author
+
+        if replymessage:
+            await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
+
     @commands.Cog.listener()
     async def on_message(self,message):
 
@@ -163,37 +210,40 @@ class syncog(commands.Cog):
             
             
             #edit the message content
-            if self.emojipattern.search(message.clean_content): #replace emojis in message
-                syncmessage = self.emojipattern.sub(self.get_emoj,message.clean_content)
-            else :
-                syncmessage= message.clean_content
-            
-            attachments=attachmentutils.getMessageAttachments(message)
-            embeds=attachmentutils.getMessageEmbeds(message)
-            if attachments :
-                syncmessage+= " \n " + str(attachments)
-            #elif embeds :
-            #    syncmessage+= " \n " + str(embeds)
+            syncmessage=self.edit_message_for_whpost(message)
             
             
             for mirror_channel_id in mirror_channels:
                 mirror_channel = self.bot.get_channel(mirror_channel_id)
-                replymessage=""
+                
+                await self.whpost_reply_tag(mirror_channel,message)
 
-                if message.reference != None: #message is a reply, add reply elements
-                    to_respond= await self.get_message_instanciated(mirror_channel,str(message.reference.message_id))
-                    replymessage += to_respond.jump_url + " \n"
-                    replymessage += "<@"+str(to_respond.author.id)+">"
-                (webhookid, webhooktoken) = await self.getOrCreateWebhookForChannel(mirror_channel)    
-            
-                user = message.author
-
-                if replymessage:
-                    await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, replymessage, user)
                 if syncmessage:
                     posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
                     posted_message_id=str(posted_message.id)
                     await self.post_to_message_dict(str(message.id),str(posted_message_id))
+        
+        
+        if message.channel.id in self.get_listened_dfwchannels():
+            
+            """If the message is sent in a channel meant to be directforwared, publish that message in the linked mirror channel, and then delete original message"""
+            mirror_channels = self.get_channel_dfwmirrors(message.channel.id)
+            
+            
+            #edit the message content
+            syncmessage=self.edit_message_for_whpost(message)
+            
+            
+            for mirror_channel_id in mirror_channels:
+                mirror_channel = self.bot.get_channel(mirror_channel_id)
+                
+                await self.whpost_reply_tag(mirror_channel,message)
+                
+                if syncmessage:
+                    posted_message=await self.PostMessageToWebHook(mirror_channel,webhookid, webhooktoken, syncmessage, user)
+                    posted_message_id=str(posted_message.id)
+                    await self.post_to_message_dict(str(message.id),str(posted_message_id))
+            await message.delete()
 
         
         if self.emojipattern.search(message.content) : #replace emojis in message if it contains ;emojiname; words
@@ -223,6 +273,19 @@ class syncog(commands.Cog):
             
             await message.delete()
 
+    @commands.command(description="Create a direct forward mirror channel. messages from input channel will be deleted there and pushed to the this channel instead")
+    async def synchronize_dfwmirror(self,ctx,channel_id):
+        try:
+            self.MEMORYSYNC.execute("""INSERT INTO dfwmirrors(channel_id,mirror_channel_id) VALUES (?,?)""", [channel_id,ctx.channel.id])
+        except Exception as e:
+            print(e)
+            await ctx.channel.send(e)
+        else:
+            self.MEMORYSYNC.commit()
+            original_channel = self.bot.get_channel(int(channel_id))
+            await original_channel.send("channel "+str(ctx.channel.id)+" from guild "+
+                                        ctx.guild.name+" will receive messages written to "+str(channel_id))
+            
     @commands.command(description="Create a mirror channel, every (non webhook) message from input channel id will be mirrored to this channel")
     async def synchronize_mirror(self,ctx,channel_id):
         try:
@@ -251,6 +314,23 @@ class syncog(commands.Cog):
             await ctx.channel.send("Stopped " + mirror_channel.name +" ("+ 
                                    str(mirror_channel.id) + 
                                    ") from mirroring messages from this channel ("+
+                                   ctx.channel.name+ ':' +str(ctx.channel.id) +")" )
+            
+    @commands.command(description="Delete a mirror directforwarding from this channel")
+    async def delete_dfwmirror(self,ctx,channel_id):
+        try:
+            self.MEMORYSYNC.execute("""DELETE FROM dfwmirrors WHERE channel_id=? and mirror_channel_id=?""",[ctx.channel.id,channel_id])
+        except Exception as e:
+            print(e)
+            await ctx.channel.send(e)
+        else:
+            self.MEMORYSYNC.commit()
+            mirror_channel = self.bot.get_channel(int(channel_id))
+            await mirror_channel.send("This channel ("+mirror_channel.name +':'+str(mirror_channel.id)+
+                                      ") will stop directforwarding messages from "+ctx.channel.name)
+            await ctx.channel.send("Stopped " + mirror_channel.name +" ("+ 
+                                   str(mirror_channel.id) + 
+                                   ") from directforwarding messages from this channel ("+
                                    ctx.channel.name+ ':' +str(ctx.channel.id) +")" )
 
 
