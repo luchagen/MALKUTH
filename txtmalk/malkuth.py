@@ -57,6 +57,7 @@ class malkuth:
         
         
         testsentences=[]
+        beliefs=[]
         for sen in generatedsentences:
             
             #get keywords from generated response
@@ -70,15 +71,15 @@ class malkuth:
                 keywordspointers+=dtpointer
             keywordspointers=list(set(keywordspointers))
             #fetch beliefs corresponding to pointers
-            beliefs=[]
+            
             for ptr in keywordspointers:
                 blf=self.MEMORY.execute("SELECT * FROM BELIEFS WHERE id==?",ptr).fetchall()
                 beliefs.append(belief.Belief(blf[0][1], blf[0][2]))
             
                 
             #for each generated sentence, the belief comparator will receive (the sentence, the list of beliefs to test the sentence against)
-            testsentences.append((sen,beliefs))
-        chosensentence=self.beefcomp.mostbelievable(testsentences)
+            testsentences.append(sen)
+        chosensentence=self.beefcomp.choose_sentence(testsentences,beliefs)
         chosenresponse=chosensentence[0][len(prompt):]
         
         self.lastquestion=""
