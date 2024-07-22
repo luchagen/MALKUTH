@@ -175,8 +175,8 @@ class syncog(commands.Cog):
         else :
             syncmessage= message.clean_content
             
-        attachments=attachmentutils.getMessageAttachments(message)
-        embeds=attachmentutils.getMessageEmbeds(message)
+        attachments=attachmentutils.get_message_attachments(message)
+        attachmentutils.get_message_embeds(message)
         if attachments :
             syncmessage+= " \n " + str(attachments)
         #elif embeds :
@@ -403,7 +403,8 @@ class syncog(commands.Cog):
     async def post_to_message_dict(self,original_message_id : str , instanciated_message_id: str):
         """
         post to a dedicated message dictionary discord channel.
-        message ids are linked to the message ids of their synchronized message"""
+        message ids are linked to the message ids of their synchronized message
+        """
         serverdictchannel = self.bot.get_channel(studiezsync.message_dict_channel)
         await serverdictchannel.send(original_message_id+"|"+instanciated_message_id)
             
