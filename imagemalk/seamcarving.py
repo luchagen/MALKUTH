@@ -41,10 +41,10 @@ def calc_energy(img):
     return energy_map
 
 def crop_c(img, scale_c):
-    r, c, _ = img.shape
+    _, c, _ = img.shape
     new_c = int(scale_c * c)
 
-    for i in trange(c - new_c):
+    for _ in trange(c - new_c):
         img = carve_column(img)
 
     return img
@@ -101,12 +101,12 @@ def main():
     img = imread("./img/issou.png")
     scale=0.6
     out = crop_c(img, scale)
-    
+
     imwrite("./img/issout.png", out)
     img = imread("./img/issout.png")
     scale=0.6
     out = crop_r(img, scale)
-    
+
     imwrite("./img/issout.png", out)
 if __name__ == '__main__':
     main()

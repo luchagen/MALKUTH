@@ -13,13 +13,14 @@ from discord import Thread
 import parameters
 from datetime import datetime
 from syncmalk import studiezsync
-from imagemalk  import attachmentutils
+from imagemalk  import image_libraries
 import aiohttp
 class syncog(commands.Cog):
     syncserver=parameters.sync_server
     syncchannels=parameters.sync_channels
     def __init__(self,bot):
         self.bot=bot
+        self.library_handler=image_libraries.ImageLibraryHandler()
 
         #initialize channels table (for webhooks)
         self.MEMORYSYNC =  sl.connect('serversync.db', check_same_thread=False)
@@ -175,8 +176,8 @@ class syncog(commands.Cog):
         else :
             syncmessage= message.clean_content
             
-        attachments=attachmentutils.get_message_attachments(message)
-        attachmentutils.get_message_embeds(message)
+        attachments=self.library_handler.get_message_attachments(message)
+        self.library_handler.get_message_embeds(message)
         if attachments :
             syncmessage+= " \n " + str(attachments)
         #elif embeds :
@@ -398,7 +399,6 @@ class syncog(commands.Cog):
                     edited_message = linked_message_id + "|"+ new_message_id 
                 await message.edit(content=edited_message)
                 return
-                
 
     async def post_to_message_dict(self,original_message_id : str , instanciated_message_id: str):
         """

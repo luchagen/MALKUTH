@@ -39,7 +39,7 @@ user_audio_dict = {
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
-    await bot.add_cog(imagemalkcog.imgmalkcog(bot))
+    await bot.add_cog(imagemalkcog.ImageMalkCog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     await bot.add_cog(syncmalkcog.syncog(bot))
     
