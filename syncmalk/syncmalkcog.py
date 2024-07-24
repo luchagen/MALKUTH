@@ -13,7 +13,7 @@ from discord import Thread
 import parameters
 from datetime import datetime
 from syncmalk import studiezsync
-from imagemalk  import image_libraries
+from imagemalk.imglibraries  import image_libraries
 import aiohttp
 class syncog(commands.Cog):
     syncserver=parameters.sync_server
