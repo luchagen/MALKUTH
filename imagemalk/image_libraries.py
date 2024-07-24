@@ -85,7 +85,8 @@ class ImageLibraryHandler:
         return picture
 
     def get_all_tables(self):
-        '''Get all picture libraries. We exclude  '''
+        '''Get all picture libraries.
+         Every table from the database '''
         tables= self.PICMEMORY.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
@@ -94,8 +95,9 @@ class ImageLibraryHandler:
         tables.remove(('FILTER_RULES',))
         return [title[0] for title in tables]
 
-    def get_random_picture(self,library_name: str,amount=1):
-        '''Get a random password from a specific library'''
+    def get_random_pictures(self,library_name: str,amount=1):
+        '''Get a number of pictures from a specific library.
+        We should not return the same picture multiple times.'''
         try:
             qry = f'''SELECT attachment FROM {self.clean(library_name)}
                     ORDER BY RANDOM() LIMIT {amount}'''
