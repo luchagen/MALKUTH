@@ -4,20 +4,14 @@ Created on Thu Jan 26 22:11:22 2023
 
 @author: suric
 """
+import asyncio
 import discord
 from discord.ext import commands
-from discord import PCMVolumeTransformer
-from discord.utils import get
-from pydub import AudioSegment
-from pydub.playback import play
-import tempfile
 import parameters
-import imagemalk.imagemalkcog as imagemalkcog
-import txtmalk.malkuthcog as malkuthcog
-import syncmalk.syncmalkcog as syncmalkcog
-import asyncio
-
-
+from imagemalk import imagemalkcog
+from txtmalk import malkuthcog
+from syncmalk import syncmalkcog
+from setup.SQL import pictures
 
 
 description = '''Malkuth has some plans to dominate the world.'''
@@ -42,8 +36,8 @@ async def on_ready():
     await bot.add_cog(imagemalkcog.ImageMalkCog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     await bot.add_cog(syncmalkcog.syncog(bot))
-    
-@bot.event    
+
+@bot.event
 async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author.id == bot.user.id:
