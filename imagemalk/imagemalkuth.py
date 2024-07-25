@@ -6,17 +6,18 @@ Created on Mon Mar 20 12:36:50 2023
 """
 from discord.ext import commands
 import discord
-from imagemalk import discord_message_images
-from imagemalk.effects import MagickEditor
+from imagemalk.imgsources import discord_message_images, image_downloader
+from imagemalk.imgeffects import malkuth_editor
 from imagemalk.imglibraries import image_libraries
 
 class ImageMalkuth():
     '''discord bot cog for interacting with images.'''
     def __init__(self,bot):
         self.bot=bot
-        self.malkmagic=MagickEditor.MagickEditor()
+        self.malkmagic=malkuth_editor.MagickEditor()
         self.library_handler=image_libraries.ImageLibraryHandler()
         self.message_images =discord_message_images.MessageImageFetcher()
+        self.image_downloader = image_downloader.ImageDownloader()
 
     async def lastpicture(self,channel):
         '''Returns images from last message that had at least an image.'''
@@ -43,8 +44,8 @@ class ImageMalkuth():
         By default will just pick the last sent image in the channel
         '''
         async with ctx.channel.typing():
-            if image=="":
-                images=[str(attachment) for attachment in ctx.message.attachments]
+            if not image :
+                images= self.message_images.get_images_from_message(ctx.message)
                 if len(images)==0:
                     lastpics=self.lastpicture(ctx.channel)
                     if lastpics !=[]:
@@ -55,7 +56,8 @@ class ImageMalkuth():
                 images = [image]
             files=[]
             for img in images:
-                file=discord.File(self.malkmagic.magick(img,1-strength))
+                local_img = self.image_downloader.download(local_folder='magick',image_url=img)
+                file=discord.File(self.malkmagic.magick(local_img,abs(1-strength)))
                 files.append(file)
             await ctx.channel.send(files=files)
 
