@@ -6,7 +6,7 @@ def table_exists(name):
     table_check=PICMEMORY.execute(
         f"SELECT name FROM sqlite_master WHERE type='table' AND name='{name}'"
         ).fetchall()
-    return  int(table_check)
+    return  bool(table_check)
 
 
 def channels_table():
@@ -47,7 +47,8 @@ def image_filters_table():
             ) VALUES (
                 ?,
                 ?
-            )""",[('',rule) for rule in default_rules])
+            )""",[['' for _ in default_rules],
+                  default_rules])
         PICMEMORY.commit()
 
 
