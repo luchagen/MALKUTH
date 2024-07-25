@@ -6,9 +6,8 @@ Created on Mon Mar 20 12:36:50 2023
 """
 from discord.ext import commands
 import discord
-from imagemalk.imgsources import discord_message_images, image_downloader
+from imagemalk.imgsources import discord_message_images, image_downloader, image_libraries
 from imagemalk.imgeffects import malkuth_editor
-from imagemalk.imglibraries import image_libraries
 
 class ImageMalkuth():
     '''discord bot cog for interacting with images.'''
