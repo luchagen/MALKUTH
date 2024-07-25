@@ -123,7 +123,7 @@ class ImageLibraryHandler:
             try:
                 qry=f""" CREATE TABLE {self.clean(library_name)} (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        attachment TEXT
+                        attachment TEXT NOT NULL
                     ); """
                 self.PICMEMORY.execute(qry)
             except sl.OperationalError:

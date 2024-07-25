@@ -1,11 +1,13 @@
 import sqlite3 as sl
 PICMEMORY =  sl.connect('PICTURES_MEMORY.db')
 
+
 def table_exists(name):
     table_check=PICMEMORY.execute(
         f"SELECT name FROM sqlite_master WHERE type='table' AND name='{name}'"
         ).fetchall()
     return  int(table_check)
+
 
 def channels_table():
     '''
@@ -15,11 +17,12 @@ def channels_table():
     if not table_exists('MASTER_PICTURES'):
         PICMEMORY.execute("""CREATE TABLE MASTER_PICTURES(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            server TEXT,
-            channel TEXT,
+            server TEXT NOT NULL,
+            channel TEXT NOT NULL,
             logging INTEGER
             )""")
         PICMEMORY.commit()
+
 
 def image_filters_table():
     ''' 
@@ -36,7 +39,7 @@ def image_filters_table():
         PICMEMORY.execute("""CREATE TABLE FILTER_RULES(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             library_name TEXT,
-            rule TEXT
+            rule TEXT NOT NULL
             )""")
         PICMEMORY.execute("""INSERT INTO FILTER_RULES(
                 library_name,
@@ -46,6 +49,7 @@ def image_filters_table():
                 ?
             )""",[('',rule) for rule in default_rules])
         PICMEMORY.commit()
+
 
 channels_table()
 image_filters_table()
