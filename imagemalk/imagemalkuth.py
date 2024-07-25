@@ -10,7 +10,7 @@ from imagemalk.imgsources import discord_message_images, image_downloader, image
 from imagemalk.imgeffects import malkuth_editor
 
 class ImageMalkuth():
-    '''discord bot cog for interacting with images.'''
+    '''discord bot tools for commands interacting with images.'''
     def __init__(self,bot):
         self.bot=bot
         self.malkmagic=malkuth_editor.MagickEditor()
