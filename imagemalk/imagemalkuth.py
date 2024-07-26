@@ -90,21 +90,21 @@ class ImageMalkuth():
             self.library_handler.delete_one_picture(library_name,pictureid)
 
 
-    async def picture(self,context,library_name : str,pictureid: int,do_logging: int):
+    async def picture(self,context,library_name : str,pictureid: int,do_logging: bool):
         '''Send a picture from a specific library'''
         async with context.channel.typing():
             img = self.library_handler.get_one_picture(library_name,pictureid)
             if isinstance(img[0],str):
                 await context.send(img[0])
-                if do_logging==1:
+                if do_logging:
                     self.library_handler.store_picture(img[0],context.channel.name)
             else:
                 await context.send(img[0][0])
-                if do_logging==1:
+                if do_logging:
                     self.library_handler.store_picture(img[0][0],context.channel.name)
 
 
-    async def send_random_pictures(self,context, library_name : str,amount, do_logging: int):
+    async def send_random_pictures(self,context, library_name : str,amount, do_logging: bool):
         '''send random pictures from a specific library
             to a discord channel identified by the context variable.
             we may send more than 10 images at once if the user can anyway manage the channel.'''
@@ -113,11 +113,11 @@ class ImageMalkuth():
             async with context.channel.typing():
                 if isinstance(img,str):
                     await context.send(img)
-                    if do_logging==1:
+                    if do_logging:
                         self.library_handler.store_picture(img,context.channel.name)
                 else:
                     await context.send(img[0])
-                    if do_logging==1:
+                    if do_logging:
                         self.library_handler.store_picture(img[0],context.channel.name)
 
 

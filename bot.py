@@ -20,7 +20,12 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
-bot = commands.Bot(command_prefix='?', description=description, intents=intents)
+
+help_command = commands.help.DefaultHelpCommand(width=160)   #change default parameter description length
+bot = commands.Bot(command_prefix='?', 
+                   description=description,
+                   intents=intents,
+                   help_command=help_command)
 
 # Initialize voice client variable
 voice_client = None

@@ -5,7 +5,6 @@ Created on Mon Mar 20 12:36:50 2023
 @author: suric
 """
 from discord.ext import commands
-import discord
 import parameters
 from imagemalk import imagemalkuth
 
@@ -78,8 +77,9 @@ class ImageMalkCog(commands.Cog):
             picture_id: int=commands.parameter(
                 default=1,
                 description="The id of the picture you want to send."),
-            do_logging: int =commands.parameter(
+            do_logging: bool =commands.parameter(
                 default=0,
+                converter=bool,
                 description=do_logging_desc)
         ):
         if not library_name:
@@ -100,8 +100,9 @@ class ImageMalkCog(commands.Cog):
                 description='''the amount of pictures to send.
                     A maximum of 10 can be sent at once.'''
             ),
-            do_logging: int=commands.parameter(
+            do_logging: bool =commands.parameter(
                 default=0,
+                converter=bool,
                 description=do_logging_desc
             )
         ):
