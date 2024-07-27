@@ -4,7 +4,7 @@ Created on Thu Jan 26 22:11:22 2023
 
 @author: suric
 """
-import asyncio
+import logging
 import discord
 from discord.ext import commands
 import parameters
@@ -14,16 +14,17 @@ from syncmalk import syncmalkcog
 from setup.SQL import pictures
 
 
-description = '''Malkuth has some plans to dominate the world.'''
+DESCRIPTION = '''Malkuth has some plans to dominate the world.'''
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
 
-help_command = commands.help.DefaultHelpCommand(width=160)   #change default parameter description length
-bot = commands.Bot(command_prefix='?', 
-                   description=description,
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+help_command = commands.help.DefaultHelpCommand(width=160) #change parameter description length
+bot = commands.Bot(command_prefix='?',
+                   description=DESCRIPTION,
                    intents=intents,
                    help_command=help_command)
 
@@ -49,4 +50,4 @@ async def on_message(message):
         return
     await bot.process_commands(message)
 
-bot.run(parameters.discord_api_key)
+bot.run(parameters.discord_api_key,log_handler=handler)

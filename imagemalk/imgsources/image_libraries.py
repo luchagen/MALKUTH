@@ -7,12 +7,16 @@ Created on Tue Mar  7 20:39:26 2023
 
 
 import sqlite3 as sl
-from logging import getLogger
+import logging
 
 class ImageLibraryHandler:
-    '''Class to handle image libraries.'''
-    _logger=getLogger(__name__)
+    '''Class to handle image libraries in SQL form.'''
+    _logger=logging.getLogger(__name__)
+    _logger.addHandler(
+        logging.FileHandler(filename='image_libraries.log', encoding='utf-8', mode='w')
+        )
     PICMEMORY =  sl.connect('PICTURES_MEMORY.db')
+
     def clean(self,table_name: str):
         ''' As the purpose of the app is to be used by others,
             always clean names to prevent sql injection !'''
@@ -23,14 +27,12 @@ class ImageLibraryHandler:
         try:
             qry = f"SELECT attachment FROM {self.clean(library_name)}"
             return self.PICMEMORY.execute(qry).fetchall()
-        except sl.OperationalError:
+        except sl.OperationalError as exc:
             message = '''
                 No library by this name.
-                 If you entered a channel/did not enter anything, check if logging was activated,
-                 or change the channel name to a unique name (NOT case sensitive)
             '''
             self._logger.error(message)
-            return [message]
+            raise ValueError(message) from exc
 
     def add_exclude_rule(self,**library_rules):
         '''add a rule to exclude particular domains from image urls for a library.'''
@@ -72,16 +74,14 @@ class ImageLibraryHandler:
         try:
             nbr = len(self.PICMEMORY.execute(qry1).fetchall())
             picture = self.PICMEMORY.execute(qry,[i]).fetchall()
-        except sl.OperationalError:
+        except sl.OperationalError as exc:
             message = '''
                 No library by this name.
-                 If you entered a channel/did not enter anything, check if logging was activated,
-                 or change the channel name to a unique name (NOT case sensitive)
             '''
             self._logger.error(message)
-            return [message]
+            raise ValueError(message) from exc
         if picture==[]:
-            return ["No images with this id. the length of this library is " + str(nbr)]
+            raise ValueError("No images with this id. the length of this library is " + str(nbr))
         return picture
 
     def get_all_tables(self):
@@ -105,14 +105,12 @@ class ImageLibraryHandler:
             if picture==[]:
                 return ["No images in this library."]
             return picture
-        except sl.OperationalError:
+        except sl.OperationalError as exc:
             message = '''
                 No library by this name.
-                 If you entered a channel/did not enter anything, check if logging was activated,
-                 or change the channel name to a unique name (NOT case sensitive)
             '''
             self._logger.error(message)
-            return [message]
+            raise ValueError(message) from exc
 
     def store_picture(self,attachment: str,library_name: str):
         '''store a picture reference inside the wanted library'''
@@ -132,11 +130,11 @@ class ImageLibraryHandler:
         try:
             qry= f"INSERT into {self.clean(library_name)} (attachment) values(?)"
             self.PICMEMORY.execute(qry,([attachment]))
-        except sl.OperationalError:
+        except sl.OperationalError as exc:
             self.PICMEMORY.rollback()
-            print('''Failed to put this attachment inside the mentioned table,
-                   probably the table doesn't exist''')
-            return
+            raise ValueError('''Failed to put this attachment inside the mentioned table,
+                   probably the table doesn't exist''') from exc
+
         self.PICMEMORY.commit()
 
 
@@ -182,12 +180,10 @@ class ImageLibraryHandler:
             self.PICMEMORY.execute(qry)
             self.PICMEMORY.commit()
             return ''
-        except sl.OperationalError:
+        except sl.OperationalError as exc:
             self.PICMEMORY.rollback()
             message = '''
                 No library by this name.
-                 If you entered a channel/did not enter anything, check if logging was activated,
-                 or change the channel name to a unique name (NOT case sensitive)
             '''
             self._logger.error(message)
-            return [message]
+            raise ValueError(message) from exc
