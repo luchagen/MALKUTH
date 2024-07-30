@@ -55,7 +55,7 @@ class ImageMalkCog(commands.Cog):
 
 
     @commands.command(description="Delete a picture from one of Malkuth's library")
-    async def deletepicture(self,ctx,
+    async def delete_picture(self,ctx,
             library_name : str=commands.parameter(
                 default="",
                 description=library_name_desc),

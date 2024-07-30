@@ -143,7 +143,9 @@ class ImageLibraryHandler:
         isactivated= self.PICMEMORY.execute(
             "SELECT logging FROM MASTER_PICTURES WHERE server=(?) AND channel=(?)",
             (server,channel)).fetchall()
-        return bool(isactivated[0][0])
+        if  isactivated :
+            return bool(isactivated[0][0])
+        return False
 
     def change_logging(self,server: str, channel:str):
         '''change logging status of a channel '''
