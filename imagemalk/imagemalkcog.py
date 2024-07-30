@@ -66,7 +66,15 @@ class ImageMalkCog(commands.Cog):
         if library_name=="":
             library_name= ctx.channel.name
 
-        await self.imagemalkuth.delete_picture(ctx,library_name,picture_id)
+        try:
+            await self.imagemalkuth.delete_picture(ctx,library_name,picture_id)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
 
 
     @commands.command(description="Send a picture from one of Malkuth's library")
@@ -85,7 +93,21 @@ class ImageMalkCog(commands.Cog):
         if not library_name:
             library_name= ctx.channel.name
 
-        await self.imagemalkuth.picture(ctx,library_name,picture_id,do_logging)
+        try:
+            await self.imagemalkuth.picture(ctx,library_name,picture_id,do_logging)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
+        except KeyError as e:
+            message = f'''
+                Exception: {e}
+                There may be holes in case images were deleted.
+            '''
+            await ctx.send(message)
 
 
     @commands.command(
@@ -113,7 +135,15 @@ class ImageMalkCog(commands.Cog):
         if amount > 10 and not user_can_spam:
             amount= 10
 
-        await self.imagemalkuth.send_random_pictures(ctx,library_name,amount,do_logging)
+        try:
+            await self.imagemalkuth.send_random_pictures(ctx,library_name,amount,do_logging)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
 
 
     @commands.command(description='''Completely reload one channels library.

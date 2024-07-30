@@ -81,7 +81,7 @@ class ImageLibraryHandler:
             self._logger.error(message)
             raise ValueError(message) from exc
         if picture==[]:
-            raise ValueError("No images with this id. the length of this library is " + str(nbr))
+            raise KeyError("No image with this id. the length of this library is " + str(nbr))
         return picture
 
     def get_all_tables(self):
