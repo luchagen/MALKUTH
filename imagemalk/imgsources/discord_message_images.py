@@ -23,7 +23,7 @@ class MessageImageFetcher:
             if embedcontainer.image  and embedcontainer.image.proxy_url:
                 imgurl=embedcontainer.image.proxy_url
 
-            if embedcontainer.imag and embedcontainer.image.url :
+            if embedcontainer.image and embedcontainer.image.url :
                 imgurl=embedcontainer.image.url
 
             if embedcontainer.thumbnail and embedcontainer.thumbnail.url :
