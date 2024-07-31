@@ -26,7 +26,7 @@ class malkuth:
         self.writememory=writememory
         self.scentgen=sentencegenerator.SentenceGenerator(sentencesperquery, sequencelength,shorttermmemory_size,topp,topk)
         
-    def generate_response(self,message,messagesender):
+    def generate_response(self,message,messagesender,server='',channel = ''):
         #get keywords from prompt message
         messagekw=self.kwfinder.keywords(message)
         
@@ -53,7 +53,8 @@ class malkuth:
         self.last_activated=memoryprompt
         #generate responses to prompt
         prompt=messagesender+": "+message+memoryprompt+" \nMalkuth:"
-        generatedsentences=self.scentgen.inference_session(prompt,self.lastquestion,self.lastresponse)
+        generatedsentences=self.scentgen.inference_session(self.get_system_prompt(server,channel),
+                                prompt,self.lastquestion,self.lastresponse)
         
         
         testsentences=[]
@@ -179,3 +180,42 @@ class malkuth:
         self.scentgen.wipeshorttermmemory()
         self.lastquestion =""
         self.lastresponse =""
+
+
+    def new_system_prompt(self,server: str ,channel: str, prompt: str):
+        '''Insert a new system prompt for the channel
+        so that malkuth knows how behave there'''
+        existence_check=self.MEMORY.execute(
+        f"SELECT id FROM CHANNELS WHERE server='{server}' AND channel='{channel}'"
+        ).fetchall()
+        try:
+            if existence_check:
+                self.MEMORY.execute(
+                "UPDATE CHANNELS set system_prompt = ? WHERE server=? AND channel=?",
+                (server,channel,prompt)
+                )
+
+            else :
+                self.MEMORY.execute(
+                "INSERT INTO CHANNELS(server,channel,system_prompt) VALUES (?,?,?)",
+                (server,channel,prompt)
+                )
+
+            self.MEMORY.commit()
+
+        except Exception as e:
+            self.MEMORY.rollback()
+            raise e from e
+
+
+    def get_system_prompt(self,server: str ,channel: str):
+        '''Get the system prompt for the channel
+        so that malkuth knows how behave there'''
+        system_prompt=self.MEMORY.execute(
+        f"SELECT system_prompt FROM CHANNELS WHERE server='{server}' AND channel='{channel}'"
+        ).fetchall()
+
+        if system_prompt and system_prompt[0]:
+            return system_prompt[0][0]
+        else :
+            return None

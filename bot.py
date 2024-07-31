@@ -11,7 +11,7 @@ import parameters
 from imagemalk import imagemalkcog
 from txtmalk import malkuthcog
 from syncmalk import syncmalkcog
-from setup.SQL import pictures
+from setup.SQL import pictures,memories
 
 
 DESCRIPTION = '''Malkuth has some plans to dominate the world.'''

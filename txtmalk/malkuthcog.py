@@ -30,19 +30,28 @@ class malkcog(commands.Cog):
         self.sem.acquire()
         try:
             if message.clean_content[:7]== '@MALKUTH':
-                reply=self.babamalk.generate_response(message.content[8:],message.author.name)
+                reply=self.babamalk.generate_response(message.content[8:],
+                                                      message.author.name,
+                                                      message.guild.name,
+                                                      message.channel.name)
             else :
-                reply=self.babamalk.generate_response(message.content,message.author.name)
+                reply=self.babamalk.generate_response(message.content,
+                                                      message.author.name,
+                                                      message.guild.name,
+                                                      message.channel.name)
                 
             if reply[-4:] == '</s>':
                 reply =reply[:-4]
             self.sem.release()
             return reply
-        except AttributeError:
+        except AttributeError as e:
             self.sem.release()
-            return ("The LM has not properly loaded. Check the state of the Petals network at health.petals.ml",1.0,"no")
-        except:
+            return (f''' Exception : {e}
+                    The LM has not properly loaded. Check the state of the Petals network at health.petals.ml''',1.0,"no")
+        except Exception as e :
             traceback.print_exc()
+            return (f''' Exception : {e}
+                    ''',1.0,"no")
             
     def babamalkfreeprompt(self,prompt):
         try:
@@ -128,6 +137,23 @@ class malkcog(commands.Cog):
     async def malkuth_on_youtube(self,ctx, ytvideo: str=""):
         async with ctx.channel.typing():
             await ctx.send(self.youtube_video(ytvideo))
+        
+    @commands.command(description='''Tell Malkuth how she must behave in this channel.
+                    e.g. : You are Malkuth. your job is to answer question on a discord channel.''')
+    async def system_prompt(self,ctx, prompt: str=""):
+        self.babamalk.new_system_prompt(
+            ctx.guild.name,
+            ctx.channel.name,
+            prompt)
+        async with ctx.channel.typing():
+            hello= await asyncio.get_running_loop().run_in_executor(
+                None, self.babamalk.generate_response,
+                        prompt,
+                        ctx.author.name,
+                        ctx.guild.name,
+                        ctx.channel.name
+                )
+            await ctx.channel.send(prompt + str(hello[0]))
             
     @commands.command(description='wipe malkuths short term memory')
     async def wipemalkuth(self,ctx):

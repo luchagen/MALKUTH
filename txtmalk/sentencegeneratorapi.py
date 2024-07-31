@@ -21,7 +21,7 @@ class SentenceGenerator():
     # stoptokens= [17,503,4,1926,34,2040] #?!. end of message detection tokens.
     # stopcriteria= generation_stopping_criteria.StoppingCriteriaList()
     # stopcriteria.append(StopWordCriteria(stoptokens))
-    metacontext ="Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée sur un serveur discord dénommé Studiez. \n"
+    default_metacontext ="Malkuth, une intelligence artificielle, échange avec des humains par messagerie électronique instantanée sur un serveur discord dénommé Studiez. \n"
     context = []
     
     
@@ -35,56 +35,92 @@ class SentenceGenerator():
         
         
         
-    def generate_sentences(self,context: str,prompt: str):
+    def generate_sentences(self,system_prompt : str , prompt: str ,*context: dict):
             sentences = []
-            for i in range(self.sentencesperquery):
-                response = openai.Completion.create(
-                    model="text-davinci-003",
-                    prompt=prompt,
+            if not system_prompt:
+                system_prompt = self.default_metacontext
+
+            for _ in range(self.sentencesperquery):
+                response = openai.chat.completions.create(
+                    model="gpt-4o-mini-2024-07-18",
+                    messages=[
+                        {
+                          "role": "system",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": system_prompt
+                            }
+                          ]
+                        }
+                        ] + list(context)
+                        + [self.parse_message(prompt)],
                     temperature=0.4,
                     max_tokens=self.sequencelength,
                     top_p=self.topp,
                     frequency_penalty=0,
                     presence_penalty=0
                     )
-                sentences.append(prompt+ response["choices"][0]["text"])
+                sentences.append(prompt+ response.choices[0].message.content)
                 
                 
                 #print(sentenceb)
                 
             return(sentences)
     
-    #we take in a fonction that tokenises and memorises the tokens of past discussions,
-    #for generation to take immediate past sentences into account without regenerating the tokens
-    def inference_session(self,prompt: str,last_question : str,last_response: str):
-        #generate tokens for interaction n-1
+
+    def inference_session(self,system_prompt : str,prompt: str,last_question : str,last_response: str):
+        '''We handle the short term memorisation of past messages here.
+        '''
         
-        
-        self.context.append(last_question+ " \n" +last_response+" \n")
+        self.context.append(self.parse_message(last_question))
+        self.context.append(self.parse_message(last_response))
         if len(self.context)>self.shorttermmemory_size:
             self.context.pop(0)
-        
-        #hypercontext + context  
-        hyperprompt = "" + self.metacontext
-        for i in range(1,len(self.context)):
-            hyperprompt+=self.context[i]
-        
-        gscent = self.generate_sentences(hyperprompt,prompt)
-            
+
+        gscent = self.generate_sentences(system_prompt,prompt, *self.context)
+
         return gscent
-    
-    def free_text_gen(self,prompt):
-        #place the burden of indicating context on the user, no memory whatsoever
-        response = openai.Completion.create(
-            model="text-davinci-001",
-            prompt=prompt,
+
+
+    def parse_message(self, text : str):
+        '''Parse string message into open ai formatted message'''
+        return {
+            "role": "user",
+            "content": [
+                {
+                "type": "text",
+                "text" : text
+                }
+            ]
+            }  
+
+    def free_text_gen(self,prompt, system_prompt=''):
+        '''place the burden of indicating context on the user, no memory whatsoever'''
+        if not system_prompt:
+            system_prompt = self.default_metacontext
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini-2024-07-18",
+            messages=[
+                {
+                  "role": "system",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": system_prompt
+                    }
+                  ]
+                },
+                self.parse_message(prompt)
+                ],
             temperature=0.4,
             max_tokens=self.sequencelength,
             top_p=self.topp,
             frequency_penalty=0,
             presence_penalty=0
             )
-        return response["choices"][0]["text"]
-    
+        return response.choices[0].message.content
+
     def wipeshorttermmemory(self):
         self.context = []
