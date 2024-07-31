@@ -116,7 +116,8 @@ class malkcog(commands.Cog):
         else:
             prompt=message.reference.resolved.clean_content
         result = await asyncio.get_running_loop().run_in_executor(None, self.babamalkretrospect,prompt,message.clean_content,payload.emoji.name,-1.0) 
-        
+
+  
     @commands.Cog.listener()
     async def on_message(self,message):
         # we do not want the bot to reply to itself
@@ -126,13 +127,15 @@ class malkcog(commands.Cog):
                 await message.add_reaction( self.bot.get_emoji(parameters.midresultemoji))
                 await message.add_reaction( self.bot.get_emoji(parameters.badresultemoji))
             return
+        
         if self.bot.user.mentioned_in(message):
+            reply= await asyncio.get_running_loop().run_in_executor(None, self.babamalkreply,message)
+            self.lastresponse=reply[0]
+            self.lastactivated=reply[2]
             async with message.channel.typing():
-                reply= await asyncio.get_running_loop().run_in_executor(None, self.babamalkreply,message)
-                self.lastresponse=reply[0]
-                self.lastactivated=reply[2]
                 await message.reply(reply[0])
-                
+
+
     @commands.command(description='Send forth malkuth to the lands of youtube. Uses malkuths recent memories (see wassup) as keywords for research.')
     async def malkuth_on_youtube(self,ctx, ytvideo: str=""):
         async with ctx.channel.typing():
@@ -145,15 +148,16 @@ class malkcog(commands.Cog):
             ctx.guild.name,
             ctx.channel.name,
             prompt)
-        async with ctx.channel.typing():
-            hello= await asyncio.get_running_loop().run_in_executor(
+        
+        hello= await asyncio.get_running_loop().run_in_executor(
                 None, self.babamalk.generate_response,
                         prompt,
                         ctx.author.name,
                         ctx.guild.name,
                         ctx.channel.name
                 )
-            await ctx.channel.send(prompt + str(hello[0]))
+        async with ctx.channel.typing():
+            await ctx.channel.send(prompt + '  ' + str(hello[0]))
             
     @commands.command(description='wipe malkuths short term memory')
     async def wipemalkuth(self,ctx):
