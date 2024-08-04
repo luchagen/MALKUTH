@@ -4,7 +4,7 @@ Created on Sun Jan 22 23:02:44 2023
 
 @author: suric
 """
-
+import logging
 import txtmalk.utils as utils
 from sentence_transformers import SentenceTransformer
 from scipy.spatial.distance import cosine
@@ -17,6 +17,12 @@ class BeliefComparator:
     in order to pick the most adequate.
     '''
     modelsentence =  SentenceTransformer("./sentence")
+    _logger=logging.getLogger(__name__)
+    _logger.setLevel(20)
+    _logger.addHandler(
+        logging.FileHandler(filename='belief_comparator.log', encoding='utf-8', mode='w')
+        )
+
     def __init__(self,keywordsfindersub):
         self.keywordsfindersub=keywordsfindersub
 
@@ -31,11 +37,10 @@ class BeliefComparator:
         for memory in memories:
             vector = self.modelsentence.encode([memory.getsentence()])[0]
             belief_strength = memory.getstrength()
-            predicates = self.keywordsfindersub.predicates(memory.getsentence())
             beliefs.append(
                 {'vector':vector,
-                 'belief_strength':belief_strength,
-                 'predicates':predicates})
+                 'belief_strength':belief_strength
+                })
         return beliefs
 
     def parse_sentences(self,sentences):
@@ -47,32 +52,9 @@ class BeliefComparator:
         parsed_sentences=[]
         for sentence in sentences:
             vector =self.modelsentence.encode([sentence[0]])[0]
-            predicates=self.keywordsfindersub.predicates(sentence[0])
-            parsed_sentences.append({'vector':vector,'predicates':predicates,'sentence':sentence})
+            parsed_sentences.append({'vector':vector,'sentence':sentence})
         return parsed_sentences
 
-    def predicate_similarity(self,beliefs,sentence):
-        '''we calculate simularity of a sentence to memories based on their predicates'''
-        nbr_predicates= len(sentence['predicates'])
-        predicates_similarity=[0 for i in range(nbr_predicates)]
-        for i in range(nbr_predicates):
-            activations=[]
-
-            for index, belief in enumerate(beliefs):
-                activations+=utils.getactivations(
-                    belief['predicates'],
-                    sentence['predicates'][i],
-                    index,belief['belief_strength']
-                    )
-
-            nbract=len(activations)
-            for activation in activations:
-                predicates_similarity[i]+=activation[0]*beliefs[activation[1]]/(nbract*10)
-
-        similarity=0
-        if len(predicates_similarity)!=0:
-            similarity=sum(predicates_similarity)/len(predicates_similarity)
-        return similarity
 
     def cosine_similarity(self,beliefs,sentence):
         '''
@@ -96,14 +78,13 @@ class BeliefComparator:
 
         for parsed_sentence in parsed_sentences:
 
-            predicate_similarity = self.predicate_similarity(beliefs,parsed_sentence)
+
             cosine_similarity = self.cosine_similarity(beliefs,parsed_sentence)
 
-            computed_similarity = predicate_similarity + cosine_similarity
-
-            if computed_similarity > minimum_similarity:
+            if cosine_similarity > minimum_similarity:
                 choosen_sentence=parsed_sentence['sentence']
-                minimum_similarity=computed_similarity
+                minimum_similarity=cosine_similarity
 
+        self._logger.info('Choice : %s' ,str((choosen_sentence,minimum_similarity)))
         return choosen_sentence,minimum_similarity
     
