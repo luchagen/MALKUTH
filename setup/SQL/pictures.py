@@ -47,7 +47,7 @@ def image_filters_table():
             ) VALUES (
                 ?,
                 ?
-            )""",[['' for _ in default_rules],
+            )""",[('' for _ in default_rules),
                   default_rules])
         PICMEMORY.commit()
 

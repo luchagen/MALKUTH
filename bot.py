@@ -12,7 +12,7 @@ import vocmalk.voccog as vocmalkcog
 from imagemalk import imagemalkcog
 from txtmalk import malkuthcog
 from syncmalk import syncmalkcog
-from setup.SQL import pictures
+from setup.SQL import pictures,memories
 
 
 
