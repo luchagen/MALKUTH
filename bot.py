@@ -4,46 +4,47 @@ Created on Thu Jan 26 22:11:22 2023
 
 @author: suric
 """
+import logging
 import discord
 from discord.ext import commands
-from discord import PCMVolumeTransformer
-from discord.utils import get
-from pydub import AudioSegment
-from pydub.playback import play
-import tempfile
 import parameters
-import imagemalk.imagemalkcog as imagemalkcog
-import txtmalk.malkuthcog as malkuthcog
-import syncmalk.syncmalkcog as syncmalkcog
 import vocmalk.voccog as vocmalkcog
-import asyncio
+from imagemalk import imagemalkcog
+from txtmalk import malkuthcog
+from syncmalk import syncmalkcog
+from setup.SQL import pictures
 
 
 
-
-description = '''Malkuth has some plans to dominate the world.'''
+DESCRIPTION = '''Malkuth has some plans to dominate the world.'''
 
 intents = discord.Intents.all()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
-bot = commands.Bot(command_prefix='?', description=description, intents=intents)
+
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+help_command = commands.help.DefaultHelpCommand(width=160) #change parameter description length
+bot = commands.Bot(command_prefix='?',
+                   description=DESCRIPTION,
+                   intents=intents,
+                   help_command=help_command)
 
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
-    await bot.add_cog(imagemalkcog.imgmalkcog(bot))
+    await bot.add_cog(imagemalkcog.ImageMalkCog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     await bot.add_cog(syncmalkcog.syncog(bot))
     await bot.add_cog(vocmalkcog.voccog(bot))
     
-@bot.event    
+@bot.event
 async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author.id == bot.user.id:
         return
     await bot.process_commands(message)
 
-bot.run(parameters.discord_api_key)
+bot.run(parameters.discord_api_key,log_handler=handler)

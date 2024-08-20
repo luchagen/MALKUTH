@@ -4,183 +4,153 @@ Created on Mon Mar 20 12:36:50 2023
 
 @author: suric
 """
-import imagemalk.MagickEditor as MagickEditor
 from discord.ext import commands
-import discord
-import imagemalk.attachmentutils as attachmentutils
+import parameters
+from imagemalk import imagemalkuth
 
-class imgmalkcog(commands.Cog):
+
+#generic parameters descriptions :
+library_name_desc='''The library the specified picture(s) are from.
+                    Libraries are usually channel names.'''
+do_logging_desc='''Whether to count sent pictures into the library for this channel.
+                    You can set it to 1, otherwise they won't be saved.'''
+
+class ImageMalkCog(commands.Cog):
+    '''discord bot cog for interacting with images.'''
     def __init__(self,bot):
         self.bot=bot
-        self.malkmagic=MagickEditor.MagickEditor()
-        
-    async def lastpicture(self,channel):
-        lastpics=[]
-        async for message in channel.history(limit=1):
-            for thing in message.embeds:
-                imgurl="notfound"
-                if thing.url !=None:
-                    if thing.url[:18]!='https://tenor.com/' :
-                        imgurl=thing.url
-                if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
-                    if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
-                        imgurl=thing.thumbnail.proxy_url
-                if thing.image != None and thing.image.proxy_url!=None :
-                    if thing.image.proxy_url[:18]!='https://tenor.com/'  :
-                        imgurl=thing.image.proxy_url
-                if thing.image != None and thing.image.url!=None :
-                    if thing.image.url[:18]!='https://tenor.com/'  :
-                        imgurl=thing.image.url
-                if thing.thumbnail !=None and thing.thumbnail.url!=None :
-                    if thing.thumbnail.url[:18]!='https://tenor.com/' :
-                        imgurl=thing.thumbnail.url
-                lastpics.append(imgurl)
-            for thing in message.attachments :
-                if thing.url[:18]!='https://tenor.com/' :
-                    lastpics.append(thing.url)
-        return lastpics
-    
+        self.imagemalkuth=imagemalkuth.ImageMalkuth(bot)
+
+
     @commands.Cog.listener()
     async def on_message(self,message):
-        # we do not want the bot to reply to itself
-        if message.author.id == self.bot.user.id:
-            return
-        #attachmentlogging
-        if attachmentutils.checklogging(str(message.channel.guild.id), message.channel.name):
-            for thing in message.embeds:
-                    imgurl="notfound"
-                    if thing.url!=None:
-                        if thing.url[:18]!='https://tenor.com/' :
-                            imgurl=thing.url
-                    if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
-                        if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
-                            imgurl=thing.thumbnail.proxy_url
-                    if thing.image != None and thing.image.proxy_url!=None :
-                        if thing.image.proxy_url[:18]!='https://tenor.com/'  :
-                            imgurl=thing.image.proxy_url
-                    if thing.image != None and thing.image.url!=None :
-                        if thing.image.url[:18]!='https://tenor.com/'  :
-                            imgurl=thing.image.url
-                    if thing.thumbnail !=None and thing.thumbnail.url!=None :
-                        if thing.thumbnail.url[:18]!='https://tenor.com/' :
-                            imgurl=thing.thumbnail.url
-                    attachmentutils.storepicture(imgurl,message.channel.name)
-            for thing in message.attachments :
-                if thing.url[:18]!='https://tenor.com/' :
-                    attachmentutils.storepicture(thing.url,message.channel.name)
-    
-    @commands.command(description='use your stand malkuth')
-    async def heavens_gate_magick(self,ctx ,strength:float=0.5, image: str=""):
-        async with ctx.channel.typing():
-            if image=="":
-                images=[str(attachment) for attachment in ctx.message.attachments]
-                if len(images)==0:
-                    lastpics=self.lastpicture(ctx.channel)
-                    if lastpics !=[]:
-                        images= lastpics
-                    else:
-                        images=[self.bot.user.avatar.url]
-            else : 
-                images = [image]
-            files=[]
-            for img in images:
-                file=discord.File(self.malkmagic.magick(img,strength))
-                files.append(file)
-            await ctx.channel.send(files=files)
+        '''log images from messages into relevant libraries'''
+        await self.imagemalkuth.log_message_attachments(message)
 
 
-    @commands.command(description="activate or deactivate logging attachments into Malkuth's memory for this channel")
-    async def attachmentlog(self,ctx):
-        async with ctx.channel.typing():
-            logging_activated=attachmentutils.changelogging(str(ctx.channel.guild.id), ctx.channel.name)
-            if attachmentutils.checklogging(str(ctx.channel.guild.id), ctx.channel.name):
-                await ctx.send(" :question: Malkuth will now log all attachments posted in this channel.")
-            else:
-                await ctx.send(" :question: Malkuth will now stop logging all attachments posted in this channel.")
+    @commands.command(description='''Magically warp a picture.
+                        By default will take the last sent image in the channel.''')
+    async def heavens_gate_magick(self,ctx,
+            strength:float=commands.parameter(
+                default=0.5,
+                description='The strength of the spell, (usually) between 0 and 1.'
+            ),
+            image: str=commands.parameter(
+                default="",
+                description='(optional) Link to the image to warp.'
+            )
+            ):
+        await self.imagemalkuth.magick_effect(ctx,strength,image)
 
-    @commands.command(description="check what Malkuth has in stock in her library of pictures")
-    async def picturetypes(self,ctx):
-            await ctx.send(str(attachmentutils.getalltables()))
-            
-    @commands.command(description="send a random picture from one of Malkuth's library")
-    async def randompicture(self,ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library") ):
-        if what=="":
-            what= ctx.channel.name
-        async with ctx.channel.typing():
-            img = attachmentutils.getrandompicture(what)
-            if isinstance(img[0],str):
-                await ctx.send(img[0])
-                if do_logging==1:
-                    attachmentutils.storepicture(img[0],ctx.channel.name)
-            else:
-                await ctx.send(img[0][0])
-                if do_logging==1:
-                    attachmentutils.storepicture(img[0][0],ctx.channel.name)
 
-    @commands.command(description="delete a picture from one of Malkuth's library")
-    async def deletepicture(self,ctx, what : str=commands.parameter(default="", description="The library you want to delete a picture from, empty for the current channel"), pictureid: int=0 ):
-        if what=="":
-               what= ctx.channel.name
-        async with ctx.channel.typing():
-            img = attachmentutils.deleteonepicture(what,pictureid)
-                    
-    @commands.command(description="send a picture from one of Malkuth's library")
-    async def picture(self,ctx, what : str=commands.parameter(default="", description="The library you want a picture from, empty for the current channel") , pictureid: int=commands.parameter(default=1, description="The id of the picture you want.") , do_logging: int =commands.parameter(default=0, description="Set to 1 to log the result into this channel's library")   ):
-        if what=="":
-            what= ctx.channel.name
-        async with ctx.channel.typing():
-            img = attachmentutils.getonepicture(what,pictureid)
-            if isinstance(img[0],str):
-                await ctx.send(img[0])
-                if do_logging==1:
-                    attachmentutils.storepicture(img[0],ctx.channel.name)
-            else:
-                await ctx.send(img[0][0])
-                if do_logging==1:
-                    attachmentutils.storepicture(img[0][0],ctx.channel.name)
-            
-    @commands.command(description="send every picture from one of Malkuth's library")
-    async def everypicture(self,ctx, what : str, areyousureaboutwhatyouredoing: str, do_logging: int =0 ):
-        print(ctx.channel.name)
-        if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
-            images = attachmentutils.getallpictures(what)
-            for img in images:
-                async with ctx.channel.typing():
-             
-                    if isinstance(img,str):
-                        await ctx.send(img)
-                        if do_logging==1:
-                            attachmentutils.storepicture(img,ctx.channel.name)
-                    else:
-                        await ctx.send(img[0])
-                        if do_logging==1:
-                            attachmentutils.storepicture(img[0],ctx.channel.name)
-                        
-    @commands.command(description="completely reload one channels library. Use as a last resort, some images might not register.")
-    async def reloadattachmentlibrary(self,ctx , areyousureaboutwhatyouredoing:str):
-        if areyousureaboutwhatyouredoing=='I am sure about what I am doing' :
-            async with ctx.channel.typing():
-                attachmentutils.droplibrary(ctx.channel.name)
-                async for message in ctx.channel.history(limit=None):
-                    for thing in message.embeds:
-                        imgurl="notfound"
-                        if thing.url !=None:
-                            if thing.url[:18]!='https://tenor.com/' :
-                                imgurl=thing.url
-                        if thing.thumbnail !=None and thing.thumbnail.proxy_url!=None:
-                            if thing.thumbnail.proxy_url[:18]!='https://tenor.com/' :
-                                imgurl=thing.thumbnail.proxy_url
-                        if thing.image != None and thing.image.proxy_url!=None :
-                            if thing.image.proxy_url[:18]!='https://tenor.com/'  :
-                                imgurl=thing.image.proxy_url
-                        if thing.image != None and thing.image.url!=None :
-                            if thing.image.url[:18]!='https://tenor.com/'  :
-                                imgurl=thing.image.url
-                        if thing.thumbnail !=None and thing.thumbnail.url!=None :
-                            if thing.thumbnail.url[:18]!='https://tenor.com/' :
-                                imgurl=thing.thumbnail.url
-                        attachmentutils.storepicture(imgurl,message.channel.name)
-                    for thing in message.attachments :
-                        if thing.url[:18]!='https://tenor.com/' :
-                            attachmentutils.storepicture(thing.url,message.channel.name)
-                await ctx.send(" :question: Malkuth has successfully reregistered the library associated with this channel and saved all pictures in message history.")
+    @commands.command(description='''Activate or deactivate the logging of pictures for this channel
+                        The images will be saved in a library with the same name as the channel.''')
+    async def log_attachments(self,ctx):
+        await self.imagemalkuth.activate_attachment_logging(ctx)
+
+
+    @commands.command(description="Check what picture libraries Malkuth has in stock")
+    async def picture_libraries(self,ctx):
+        await self.imagemalkuth.picture_libraries(ctx)
+
+
+    @commands.command(description="Delete a picture from one of Malkuth's library")
+    async def delete_picture(self,ctx,
+            library_name : str=commands.parameter(
+                default="",
+                description=library_name_desc),
+            picture_id: int=commands.parameter(
+                default=1,
+                description="The id of the picture you want to delete.")
+        ):
+        if library_name=="":
+            library_name= ctx.channel.name
+
+        try:
+            await self.imagemalkuth.delete_picture(ctx,library_name,picture_id)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
+
+
+    @commands.command(description="Send a picture from one of Malkuth's library")
+    async def picture(self,ctx,
+            library_name : str=commands.parameter(
+                default="",
+                description=library_name_desc),
+            picture_id: int=commands.parameter(
+                default=1,
+                description="The id of the picture you want to send."),
+            do_logging: bool =commands.parameter(
+                default=0,
+                converter=bool,
+                description=do_logging_desc)
+        ):
+        if not library_name:
+            library_name= ctx.channel.name
+
+        try:
+            await self.imagemalkuth.picture(ctx,library_name,picture_id,do_logging)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
+        except KeyError as e:
+            message = f'''
+                Exception: {e}
+                There may be holes in case images were deleted.
+            '''
+            await ctx.send(message)
+
+
+    @commands.command(
+        description="Get random pictures from one of Malkuth's library (max 10)")
+    async def random_pictures(self,ctx,
+            library_name : str=commands.parameter(
+                default="",
+                description=library_name_desc
+            ),
+            amount : int=commands.parameter(
+                default=1,
+                description='''the amount of pictures to send.
+                    A maximum of 10 can be sent at once.'''
+            ),
+            do_logging: bool =commands.parameter(
+                default=0,
+                converter=bool,
+                description=do_logging_desc
+            )
+        ):
+        if not library_name:
+            library_name= ctx.channel.name
+
+        user_can_spam = ctx.channel.permissions_for(ctx.author).manage_channels
+        if amount > 10 and not user_can_spam:
+            amount= 10
+
+        try:
+            await self.imagemalkuth.send_random_pictures(ctx,library_name,amount,do_logging)
+        except ValueError as e:
+            message = f'''
+                Exception: {e}
+                If you entered a channel/did not enter anything, check if logging was activated,
+                or change the channel name to a unique name (NOT case sensitive)
+            '''
+            await ctx.send(message)
+
+
+    @commands.command(description='''Completely reload one channels library.
+                       Use as a last resort, some images might not register.''')
+    async def reload_attachment_library(self,ctx):
+        user_can_do_this = ctx.channel.permissions_for(ctx.author).manage_channels
+        if user_can_do_this:
+            await self.imagemalkuth.reload_attachment_library(ctx)
+        else : 
+            await   ctx.channel.send(parameters.wrongcommandmessage)
