@@ -8,15 +8,17 @@ import logging
 import discord
 from discord.ext import commands
 import parameters
+import vocmalk.voccog as vocmalkcog
 from imagemalk import imagemalkcog
 from txtmalk import malkuthcog
 from syncmalk import syncmalkcog
 from setup.SQL import pictures
 
 
+
 DESCRIPTION = '''Malkuth has some plans to dominate the world.'''
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
@@ -28,12 +30,6 @@ bot = commands.Bot(command_prefix='?',
                    intents=intents,
                    help_command=help_command)
 
-# Initialize voice client variable
-voice_client = None
-
-# Define user ID to audio file path dictionary
-user_audio_dict = {
-}
 
 @bot.event
 async def on_ready():
@@ -42,7 +38,8 @@ async def on_ready():
     await bot.add_cog(imagemalkcog.ImageMalkCog(bot))
     await bot.add_cog(malkuthcog.malkcog(bot,parameters.youtube_api_key))
     await bot.add_cog(syncmalkcog.syncog(bot))
-
+    await bot.add_cog(vocmalkcog.voccog(bot))
+    
 @bot.event
 async def on_message(message):
     # we do not want the bot to reply to itself
